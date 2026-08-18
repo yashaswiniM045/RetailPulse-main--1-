@@ -1,0 +1,42 @@
+services:
+	postgres:
+		image: postgres:16-alpine
+		container_name: retailpulse-postgres
+		environment:
+			POSTGRES_DB: retailpulse
+			POSTGRES_USER: retailpulse
+			POSTGRES_PASSWORD: retailpulse
+		ports:
+			- "5432:5432"
+		volumes:
+			- retailpulse_postgres_data:/var/lib/postgresql/data
+
+	backend:
+		build:
+			context: ./backend
+		container_name: retailpulse-backend
+		environment:
+			DATABASE_URL: postgresql+psycopg://retailpulse:retailpulse@postgres:5432/retailpulse
+			JWT_SECRET_KEY: change-me
+			JWT_REFRESH_SECRET_KEY: change-me-too
+			ACCESS_TOKEN_EXPIRE_MINUTES: 30
+			REFRESH_TOKEN_EXPIRE_DAYS: 7
+			CORS_ORIGINS: http://localhost:5173
+		depends_on:
+			- postgres
+		ports:
+			- "8000:8000"
+
+	frontend:
+		build:
+			context: ./frontend
+		container_name: retailpulse-frontend
+		environment:
+			VITE_API_URL: http://localhost:8000/api
+		depends_on:
+			- backend
+		ports:
+			- "5173:5173"
+
+volumes:
+	retailpulse_postgres_data:
