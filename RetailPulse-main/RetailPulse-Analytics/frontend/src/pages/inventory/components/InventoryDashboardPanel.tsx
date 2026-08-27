@@ -1,4 +1,8 @@
 import { Alert, Button, Card, CardContent, Grid, Paper, Stack, Typography } from "@mui/material";
+import Inventory2RoundedIcon from "@mui/icons-material/Inventory2Rounded";
+import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
+import RemoveShoppingCartRoundedIcon from "@mui/icons-material/RemoveShoppingCartRounded";
+import CategoryRoundedIcon from "@mui/icons-material/CategoryRounded";
 import {
 	Bar,
 	BarChart,
@@ -54,32 +58,36 @@ export default function InventoryDashboardPanel({
 
 			<Grid container spacing={2}>
 				<Grid size={{ xs: 12, md: 3 }}>
-					<Card>
+					<Card sx={{ background: "linear-gradient(135deg, #EEF0FF, #FFFFFF)" }}>
 						<CardContent>
+							<Inventory2RoundedIcon color="primary" />
 							<Typography color="text.secondary">Total Products</Typography>
 							<Typography variant="h4" fontWeight={700}>{dashboard?.totalProducts ?? 0}</Typography>
 						</CardContent>
 					</Card>
 				</Grid>
 				<Grid size={{ xs: 12, md: 3 }}>
-					<Card>
+					<Card sx={{ background: "linear-gradient(135deg, #ECFDF5, #FFFFFF)" }}>
 						<CardContent>
+							<CategoryRoundedIcon color="success" />
 							<Typography color="text.secondary">Total Inventory Qty</Typography>
 							<Typography variant="h4" fontWeight={700}>{dashboard?.totalInventoryQuantity ?? 0}</Typography>
 						</CardContent>
 					</Card>
 				</Grid>
 				<Grid size={{ xs: 12, md: 3 }}>
-					<Card>
+					<Card sx={{ background: "linear-gradient(135deg, #FFF7ED, #FFFFFF)" }}>
 						<CardContent>
+							<WarningAmberRoundedIcon color="warning" />
 							<Typography color="text.secondary">Low Stock Products</Typography>
 							<Typography variant="h4" fontWeight={700}>{dashboard?.lowStockProducts ?? 0}</Typography>
 						</CardContent>
 					</Card>
 				</Grid>
 				<Grid size={{ xs: 12, md: 3 }}>
-					<Card>
+					<Card sx={{ background: "linear-gradient(135deg, #FEF2F2, #FFFFFF)" }}>
 						<CardContent>
+							<RemoveShoppingCartRoundedIcon color="error" />
 							<Typography color="text.secondary">Out of Stock Products</Typography>
 							<Typography variant="h4" fontWeight={700}>{dashboard?.outOfStockProducts ?? 0}</Typography>
 						</CardContent>

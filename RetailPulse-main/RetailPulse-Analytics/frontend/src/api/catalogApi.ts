@@ -25,6 +25,10 @@ import {
 	ForecastSortDirection,
 	InventoryAdjustmentPayload,
 	InventoryDashboardSummary,
+	InventoryForecastResponse,
+	InventoryForecastRow,
+	InventoryForecastRisk,
+	InventoryForecastSort,
 	InventoryItem,
 	InventoryMovementItem,
 	InventoryMovementType,
@@ -379,6 +383,51 @@ function normalizeInventoryDashboard(data: Record<string, unknown>): InventoryDa
 	};
 }
 
+function normalizeInventoryForecastRow(data: Record<string, unknown>): InventoryForecastRow {
+	return {
+		productId: toNumber(data.productId ?? data.product_id),
+		productName: (data.productName as string | undefined) ?? (data.product_name as string) ?? "",
+		sku: (data.sku as string | undefined) ?? "",
+		categoryId: toNumber(data.categoryId ?? data.category_id),
+		categoryName: (data.categoryName as string | undefined) ?? (data.category_name as string) ?? "",
+		supplier: (data.supplier as string | null | undefined) ?? null,
+		currentStock: toNumber(data.currentStock ?? data.current_stock),
+		averageDailySales: toNumber(data.averageDailySales ?? data.average_daily_sales),
+		forecastedDemand: toNumber(data.forecastedDemand ?? data.forecasted_demand),
+		daysOfStockRemaining: data.daysOfStockRemaining === null || data.days_of_stock_remaining === null ? null : toNumber(data.daysOfStockRemaining ?? data.days_of_stock_remaining),
+		leadTimeDays: toNumber(data.leadTimeDays ?? data.lead_time_days),
+		safetyStock: toNumber(data.safetyStock ?? data.safety_stock),
+		reorderPoint: toNumber(data.reorderPoint ?? data.reorder_point),
+		recommendedReorderQuantity: toNumber(data.recommendedReorderQuantity ?? data.recommended_reorder_quantity),
+		stockRisk: ((data.stockRisk as InventoryForecastRisk | undefined) ?? (data.stock_risk as InventoryForecastRisk) ?? "healthy"),
+		recommendation: (data.recommendation as string | undefined) ?? "",
+		reorderRequired: Boolean(data.reorderRequired ?? data.reorder_required),
+		historicalDemand: ((data.historicalDemand as Record<string, unknown>[] | undefined) ?? []).map((item) => ({ date: String(item.date ?? ""), demand: toNumber(item.demand) })),
+		forecastStartDate: String(data.forecastStartDate ?? data.forecast_start_date ?? ""),
+		forecastEndDate: String(data.forecastEndDate ?? data.forecast_end_date ?? ""),
+	};
+}
+
+function normalizeInventoryForecast(data: Record<string, unknown>): InventoryForecastResponse {
+	const summary = (data.summary as Record<string, unknown> | undefined) ?? {};
+	return {
+		items: ((data.items as Record<string, unknown>[] | undefined) ?? []).map(normalizeInventoryForecastRow),
+		total: toNumber(data.total),
+		page: toNumber(data.page),
+		pageSize: toNumber(data.pageSize ?? data.page_size),
+		totalPages: toNumber(data.totalPages ?? data.total_pages),
+		summary: {
+			productsRequiringReorder: toNumber(summary.productsRequiringReorder ?? summary.products_requiring_reorder),
+			productsAtStockoutRisk: toNumber(summary.productsAtStockoutRisk ?? summary.products_at_stockout_risk),
+			overstockedProducts: toNumber(summary.overstockedProducts ?? summary.overstocked_products),
+			healthyProducts: toNumber(summary.healthyProducts ?? summary.healthy_products),
+		},
+		generatedAt: String(data.generatedAt ?? data.generated_at ?? ""),
+		historicalWindowDays: toNumber(data.historicalWindowDays ?? data.historical_window_days),
+		forecastHorizonDays: toNumber(data.forecastHorizonDays ?? data.forecast_horizon_days),
+	};
+}
+
 function normalizeInventoryNotification(data: Record<string, unknown>): InventoryNotificationItem {
 	return {
 		id: toNumber(data.id),
@@ -641,6 +690,27 @@ export async function listInventoryNotifications(limit = 20) {
 export async function listInventoryBrands() {
 	const response = await apiClient.get<string[]>("/inventory/brands");
 	return response.data;
+}
+
+export async function getInventoryForecast(params: {
+	productId?: number;
+	categoryId?: number;
+	supplier?: string;
+	search?: string;
+	stockRisk?: InventoryForecastRisk;
+	reorderRequired?: boolean;
+	sortBy?: InventoryForecastSort;
+	sortDirection?: "asc" | "desc";
+	page?: number;
+	pageSize?: number;
+}) {
+	const response = await apiClient.get<Record<string, unknown>>("/inventory/forecast", { params });
+	return normalizeInventoryForecast(response.data);
+}
+
+export async function getInventoryRecommendation(productId: number) {
+	const response = await apiClient.get<Record<string, unknown>>(`/inventory/recommendations/${productId}`);
+	return normalizeInventoryForecastRow(response.data);
 }
 
 function normalizeCustomer(data: Record<string, unknown>): CustomerItem {

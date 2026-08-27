@@ -13,6 +13,7 @@ import SalesPage from "../pages/sales/SalesPage";
 import InventoryPage from "../pages/inventory/InventoryPage";
 import CustomersPage from "../pages/customers/CustomersPage";
 import ForecastingPage from "../pages/forecasting/ForecastingPage";
+import InventoryForecastPage from "../pages/inventory/InventoryForecastPage";
 import ProtectedRoute from "./ProtectedRoute";
 import RoleRoute from "./RoleRoute";
 
@@ -36,6 +37,7 @@ export default function AppRoutes() {
 					<Route element={<RoleRoute allowedRoles={["Company Admin", "Super Admin", "Analyst"]} />}>
 						<Route path="/sales" element={<SalesPage />} />
 						<Route path="/inventory" element={<InventoryPage />} />
+						<Route path="/inventory/forecast" element={<InventoryForecastPage />} />
 						<Route path="/customers" element={<CustomersPage />} />
 						<Route path="/forecasting" element={<ForecastingPage />} />
 					</Route>

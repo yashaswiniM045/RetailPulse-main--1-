@@ -351,6 +351,44 @@ export interface InventoryDashboardSummary {
 	stockStatusDistribution: InventoryStatusBreakdown[];
 }
 
+export type InventoryForecastRisk = "out-of-stock" | "stockout-risk" | "low-stock" | "healthy" | "overstock";
+export type InventoryForecastSort = "currentStock" | "forecastedDemand" | "daysRemaining" | "recommendedQuantity" | "risk";
+
+export interface InventoryForecastRow {
+	productId: number;
+	productName: string;
+	sku: string;
+	categoryId: number;
+	categoryName: string;
+	supplier: string | null;
+	currentStock: number;
+	averageDailySales: number;
+	forecastedDemand: number;
+	daysOfStockRemaining: number | null;
+	leadTimeDays: number;
+	safetyStock: number;
+	reorderPoint: number;
+	recommendedReorderQuantity: number;
+	stockRisk: InventoryForecastRisk;
+	recommendation: string;
+	reorderRequired: boolean;
+	historicalDemand: Array<{ date: string; demand: number }>;
+	forecastStartDate: string;
+	forecastEndDate: string;
+}
+
+export interface InventoryForecastResponse extends PaginatedResult<InventoryForecastRow> {
+	summary: {
+		productsRequiringReorder: number;
+		productsAtStockoutRisk: number;
+		overstockedProducts: number;
+		healthyProducts: number;
+	};
+	generatedAt: string;
+	historicalWindowDays: number;
+	forecastHorizonDays: number;
+}
+
 export interface InventoryNotificationItem {
 	id: number;
 	productId: number | null;

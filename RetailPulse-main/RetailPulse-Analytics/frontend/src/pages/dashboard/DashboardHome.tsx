@@ -1,6 +1,11 @@
 import DownloadIcon from "@mui/icons-material/Download";
+import AccountBalanceWalletRoundedIcon from "@mui/icons-material/AccountBalanceWalletRounded";
+import Inventory2RoundedIcon from "@mui/icons-material/Inventory2Rounded";
+import ShoppingCartRoundedIcon from "@mui/icons-material/ShoppingCartRounded";
+import TrendingUpRoundedIcon from "@mui/icons-material/TrendingUpRounded";
 import {
 	Alert,
+	Box,
 	Button,
 	Card,
 	CardActionArea,
@@ -22,7 +27,7 @@ import {
 	Typography,
 } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import {
 	Bar,
 	BarChart,
@@ -69,6 +74,14 @@ type KpiConfig = {
 	key: string;
 	label: string;
 	format: "currency" | "number";
+};
+
+const kpiIcons: Record<string, ReactNode> = {
+	totalRevenue: <AccountBalanceWalletRoundedIcon />,
+	totalOrders: <ShoppingCartRoundedIcon />,
+	totalProductsSold: <TrendingUpRoundedIcon />,
+	averageOrderValue: <AccountBalanceWalletRoundedIcon />,
+	totalInventoryValue: <Inventory2RoundedIcon />,
 };
 
 const kpiConfigs: KpiConfig[] = [
@@ -130,7 +143,6 @@ export default function DashboardHome({ salesAnalyticsOnly = false }: { salesAna
 	const [categoryDrilldown, setCategoryDrilldown] = useState<{ id: number; name: string } | null>(null);
 	const [productDrilldown, setProductDrilldown] = useState<{ id: number; name: string } | null>(null);
 	const visibleKpiConfigs = salesAnalyticsOnly ? kpiConfigs.slice(0, 6) : kpiConfigs;
-	const sortedTopProducts = [...(analytics?.topProducts ?? [])].sort((left, right) => right[productSort] - left[productSort]);
 
 	const applyDatePreset = (preset: DatePreset) => {
 		setDatePreset(preset);
@@ -184,6 +196,7 @@ export default function DashboardHome({ salesAnalyticsOnly = false }: { salesAna
 		queryFn: () => getDashboardAnalytics(queryFilters),
 		refetchInterval: 30000,
 	});
+	const sortedTopProducts = [...(analytics?.topProducts ?? [])].sort((left, right) => right[productSort] - left[productSort]);
 
 	const kpiRecordsQuery = useQuery({
 		queryKey: ["dashboard-kpi-drilldown", kpiDrilldown?.key, queryFilters],
@@ -250,24 +263,24 @@ export default function DashboardHome({ salesAnalyticsOnly = false }: { salesAna
 
 	return (
 		<Stack spacing={3}>
-			<Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" gap={2}>
-				<div>
-					<Typography variant="h4" fontWeight={700}>{salesAnalyticsOnly ? "Sales Analytics" : "Analytics Dashboard"}</Typography>
-					<Typography color="text.secondary">
+			<Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" gap={2} sx={{ p: { xs: 2.5, md: 3.5 }, borderRadius: 4, color: "white", background: "linear-gradient(115deg, #4F46E5 0%, #6366F1 52%, #8B5CF6 100%)", boxShadow: "0 18px 45px rgba(99,102,241,.24)", position: "relative", overflow: "hidden", "&:after": { content: '""', position: "absolute", width: 230, height: 230, borderRadius: "50%", right: -70, top: -100, background: "rgba(255,255,255,.11)" } }}>
+				<div style={{ position: "relative", zIndex: 1 }}>
+					<Typography variant="h4" fontWeight={800}>{salesAnalyticsOnly ? "Sales Analytics" : "Analytics Dashboard"}</Typography>
+					<Typography sx={{ color: "rgba(255,255,255,.76)" }}>
 						Welcome back, {user?.name}. Company scope: {user?.company.name}
 					</Typography>
-					<Typography color="text.secondary" variant="body2">
+					<Typography sx={{ color: "rgba(255,255,255,.62)" }} variant="body2">
 						Last updated: {analytics?.lastUpdatedAt ? new Date(analytics.lastUpdatedAt).toLocaleString() : "-"}
 					</Typography>
 				</div>
-				<Stack direction="row" spacing={1.5}>
-					<Button variant="outlined" onClick={() => void manualRefresh()} disabled={isFetching}>
+				<Stack direction="row" spacing={1.5} sx={{ position: "relative", zIndex: 1 }}>
+					<Button variant="outlined" onClick={() => void manualRefresh()} disabled={isFetching} sx={{ color: "white", borderColor: "rgba(255,255,255,.45)", "&:hover": { borderColor: "white", background: "rgba(255,255,255,.10)" } }}>
 						Refresh
 					</Button>
-					<Button variant="outlined" startIcon={<DownloadIcon />} onClick={() => void onExportCsv()}>
+					<Button variant="outlined" startIcon={<DownloadIcon />} onClick={() => void onExportCsv()} sx={{ color: "white", borderColor: "rgba(255,255,255,.45)", "&:hover": { borderColor: "white", background: "rgba(255,255,255,.10)" } }}>
 						Export CSV
 					</Button>
-					<Button variant="contained" startIcon={<DownloadIcon />} onClick={() => void onExportPdf()}>
+					<Button variant="contained" startIcon={<DownloadIcon />} onClick={() => void onExportPdf()} sx={{ background: "white", color: "#4F46E5", "&:hover": { background: "#F5F3FF" } }}>
 						Export PDF
 					</Button>
 				</Stack>
@@ -368,17 +381,23 @@ export default function DashboardHome({ salesAnalyticsOnly = false }: { salesAna
 			<Grid container spacing={2}>
 				{visibleKpiConfigs.map((kpi) => {
 					const value = (analytics?.kpis as Record<string, number> | undefined)?.[kpi.key] ?? 0;
+					const trendItems = kpi.key === "totalRevenue" ? analytics?.revenueTrend : kpi.key === "totalOrders" ? analytics?.salesTrend : undefined;
+					const previousTrend = trendItems && trendItems.length > 1 ? trendItems[trendItems.length - 2].revenue || trendItems[trendItems.length - 2].orders : undefined;
+					const latestTrend = trendItems && trendItems.length > 0 ? trendItems[trendItems.length - 1].revenue || trendItems[trendItems.length - 1].orders : undefined;
+					const trendPercentage = previousTrend && latestTrend !== undefined ? ((latestTrend - previousTrend) / previousTrend) * 100 : null;
 					return (
 						<Grid key={kpi.key} size={{ xs: 12, sm: 6, lg: 3 }}>
 							<Card>
 								<CardActionArea onClick={() => setKpiDrilldown({ key: kpi.key, label: kpi.label })}>
 									<CardContent>
-										<Typography color="text.secondary" gutterBottom>{kpi.label}</Typography>
+										<Stack direction="row" justifyContent="space-between" alignItems="flex-start"><Box sx={{ width: 42, height: 42, borderRadius: 2.5, display: "grid", placeItems: "center", color: "primary.main", bgcolor: "#EEF0FF" }}>{kpiIcons[kpi.key] ?? <TrendingUpRoundedIcon />}</Box><Stack direction="row" spacing={0.5} alignItems="center" sx={{ color: trendPercentage !== null && trendPercentage >= 0 ? "success.main" : "text.secondary", fontSize: 12, fontWeight: 800 }}>{trendPercentage !== null ? <><TrendingUpRoundedIcon sx={{ fontSize: 16 }} /> {trendPercentage >= 0 ? "+" : ""}{trendPercentage.toFixed(1)}%</> : "Live"}</Stack></Stack>
+										<Typography color="text.secondary" sx={{ mt: 2 }} gutterBottom>{kpi.label}</Typography>
 										{isLoading ? <Skeleton variant="text" width="70%" height={40} /> : (
 											<Typography variant="h5" fontWeight={700}>
 												{kpi.format === "currency" ? currencyFormatter.format(value) : numberFormatter.format(value)}
 											</Typography>
 										)}
+										<Stack direction="row" spacing={0.5} alignItems="flex-end" sx={{ height: 24, mt: 1.5 }}>{[35, 52, 42, 68, 56, 82, 74].map((height, index) => <Box key={index} sx={{ flex: 1, height: `${height}%`, borderRadius: "3px 3px 1px 1px", bgcolor: index === 6 ? "primary.main" : "#D9DBFF" }} />)}</Stack>
 									</CardContent>
 								</CardActionArea>
 							</Card>

@@ -1,23 +1,41 @@
 import { createTheme } from "@mui/material/styles";
 
 export const appTheme = createTheme({
-  palette: {
-    mode: "light",
-    primary: {
-      main: "#0f4c5c",
-    },
-    secondary: {
-      main: "#e36414",
-    },
-    background: {
-      default: "#f4f1ea",
-      paper: "#ffffff",
-    },
+ palette: {
+  mode: "light",
+  primary: { main: "#6366F1", light: "#818CF8", dark: "#4F46E5", contrastText: "#ffffff" },
+  secondary: { main: "#8B5CF6", light: "#A78BFA", dark: "#7C3AED", contrastText: "#ffffff" },
+  success: { main: "#10B981" },
+  warning: { main: "#F59E0B" },
+  error: { main: "#EF4444" },
+  info: { main: "#0EA5E9" },
+  background: { default: "#F6F7FB", paper: "rgba(255, 255, 255, 0.88)" },
+  text: { primary: "#17172B", secondary: "#6B6B84" },
+ },
+ shape: { borderRadius: 16 },
+ typography: {
+  fontFamily: '"Plus Jakarta Sans", "DM Sans", "Segoe UI", sans-serif',
+  h3: { fontWeight: 800, letterSpacing: "-0.02em" },
+  h4: { fontWeight: 800, letterSpacing: "-0.02em" },
+  h5: { fontWeight: 750 },
+  h6: { fontWeight: 750 },
+  button: { fontWeight: 700, textTransform: "none" },
+ },
+ components: {
+  MuiCssBaseline: {
+   styleOverrides: {
+    "@import": 'url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap")',
+    body: { background: "linear-gradient(135deg, #F7F8FC 0%, #EEF0FF 55%, #F8F5FF 100%)", minHeight: "100vh" },
+    "*": { boxSizing: "border-box" },
+   },
   },
-  shape: {
-    borderRadius: 16,
-  },
-  typography: {
-    fontFamily: '"Segoe UI", "Helvetica Neue", sans-serif',
-  },
+  MuiPaper: { styleOverrides: { root: { border: "1px solid rgba(99, 102, 241, 0.09)", boxShadow: "0 12px 40px rgba(63, 61, 110, 0.07)", backdropFilter: "blur(14px)" } } },
+  MuiCard: { styleOverrides: { root: { border: "1px solid rgba(99, 102, 241, 0.10)", boxShadow: "0 12px 34px rgba(63, 61, 110, 0.08)", transition: "transform 180ms ease, box-shadow 180ms ease", "&:hover": { transform: "translateY(-3px)", boxShadow: "0 18px 42px rgba(63, 61, 110, 0.14)" } } } },
+  MuiButton: { styleOverrides: { root: { borderRadius: 12, paddingInline: 18, boxShadow: "none", "&:hover": { boxShadow: "0 8px 18px rgba(99, 102, 241, 0.20)" } } } },
+  MuiTextField: { defaultProps: { variant: "outlined", size: "small" } },
+  MuiOutlinedInput: { styleOverrides: { root: { borderRadius: 12, backgroundColor: "rgba(255,255,255,0.72)", "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderWidth: 2 } } } },
+  MuiTableHead: { styleOverrides: { root: { backgroundColor: "#F5F5FF", "& .MuiTableCell-head": { color: "#55556F", fontWeight: 800, fontSize: "0.74rem", textTransform: "uppercase", letterSpacing: "0.04em" } } } },
+  MuiTableRow: { styleOverrides: { root: { transition: "background-color 160ms ease", "&:hover": { backgroundColor: "rgba(99, 102, 241, 0.045)" } } } },
+  MuiChip: { styleOverrides: { root: { fontWeight: 700, borderRadius: 9 } } },
+ },
 });

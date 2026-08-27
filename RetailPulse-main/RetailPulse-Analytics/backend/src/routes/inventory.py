@@ -16,6 +16,7 @@ from src.schemas.inventory import (
     InventoryRead,
     InventoryReorderLevelUpdate,
 )
+from src.schemas.inventory_forecast import InventoryForecastRead, InventoryForecastRowRead
 from src.services.inventory_service import (
     adjust_inventory_stock,
     get_inventory_dashboard,
@@ -25,6 +26,7 @@ from src.services.inventory_service import (
     list_inventory_notifications,
     update_reorder_level,
 )
+from src.services.inventory_forecast_service import get_inventory_forecast, list_inventory_forecasts
 
 router = APIRouter(prefix="/inventory", tags=["inventory"])
 
@@ -62,6 +64,46 @@ def inventory_dashboard_route(
     db: Session = Depends(get_db),
 ):
     return get_inventory_dashboard(db, current_user.company_id)
+
+
+@router.get("/forecast", response_model=InventoryForecastRead)
+def inventory_forecast_route(
+    product_id: int | None = Query(default=None, alias="productId"),
+    category_id: int | None = Query(default=None, alias="categoryId"),
+    supplier: str | None = None,
+    search: str | None = None,
+    stock_risk: str | None = Query(default=None, alias="stockRisk"),
+    reorder_required: bool | None = Query(default=None, alias="reorderRequired"),
+    sort_by: Literal["currentStock", "forecastedDemand", "daysRemaining", "recommendedQuantity", "risk"] = Query(default="risk", alias="sortBy"),
+    sort_direction: Literal["asc", "desc"] = Query(default="desc", alias="sortDirection"),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=25, ge=1, le=100, alias="pageSize"),
+    current_user: User = Depends(require_roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN, UserRole.ANALYST)),
+    db: Session = Depends(get_db),
+):
+    return list_inventory_forecasts(
+        db, current_user.company_id, product_id=product_id, category_id=category_id, supplier=supplier,
+        search=search, stock_risk=stock_risk, reorder_required=reorder_required,
+        sort_by=sort_by, sort_direction=sort_direction, page=page, page_size=page_size,
+    )
+
+
+@router.get("/recommendations", response_model=InventoryForecastRead)
+def inventory_recommendations_route(
+    reorder_required: bool = Query(default=True, alias="reorderRequired"),
+    current_user: User = Depends(require_roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN, UserRole.ANALYST)),
+    db: Session = Depends(get_db),
+):
+    return list_inventory_forecasts(db, current_user.company_id, reorder_required=reorder_required)
+
+
+@router.get("/recommendations/{product_id}", response_model=InventoryForecastRowRead)
+def inventory_recommendation_route(
+    product_id: int,
+    current_user: User = Depends(require_roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN, UserRole.ANALYST)),
+    db: Session = Depends(get_db),
+):
+    return get_inventory_forecast(db, current_user.company_id, product_id)
 
 
 @router.get("/brands", response_model=list[str])
