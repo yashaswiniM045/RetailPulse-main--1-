@@ -36,3 +36,4 @@ class User(Base, TimestampMixin):
     audit_logs = relationship("AuditLog", back_populates="user")
     inventory_movements = relationship("InventoryMovement", back_populates="user")
     inventory_notifications_created = relationship("InventoryNotification", back_populates="creator")
+    import_history = relationship("ImportHistory", back_populates="uploader")

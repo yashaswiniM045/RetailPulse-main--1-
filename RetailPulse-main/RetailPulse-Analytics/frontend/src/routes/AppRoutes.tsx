@@ -14,6 +14,7 @@ import InventoryPage from "../pages/inventory/InventoryPage";
 import CustomersPage from "../pages/customers/CustomersPage";
 import ForecastingPage from "../pages/forecasting/ForecastingPage";
 import InventoryForecastPage from "../pages/inventory/InventoryForecastPage";
+import DataImportPage from "../pages/data-import/DataImportPage";
 import ProtectedRoute from "./ProtectedRoute";
 import RoleRoute from "./RoleRoute";
 
@@ -44,6 +45,7 @@ export default function AppRoutes() {
 					<Route element={<RoleRoute allowedRoles={["Company Admin", "Super Admin"]} />}>
 						<Route path="/categories" element={<CategoriesPage />} />
 						<Route path="/products" element={<ProductsPage />} />
+						<Route path="/data-import" element={<DataImportPage />} />
 					</Route>
 				</Route>
 			</Route>

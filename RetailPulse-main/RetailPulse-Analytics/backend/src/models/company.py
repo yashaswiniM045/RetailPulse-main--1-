@@ -24,3 +24,4 @@ class Company(Base, TimestampMixin):
     forecast_notifications = relationship("ForecastNotification", back_populates="company", cascade="all, delete-orphan")
     users = relationship("User", back_populates="company", cascade="all, delete-orphan")
     audit_logs = relationship("AuditLog", back_populates="company")
+    import_history = relationship("ImportHistory", back_populates="company", cascade="all, delete-orphan")

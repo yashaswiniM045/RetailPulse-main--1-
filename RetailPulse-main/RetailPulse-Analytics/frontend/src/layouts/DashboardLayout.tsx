@@ -10,6 +10,7 @@ import MenuIcon from "@mui/icons-material/Menu";
 import NotificationsNoneRoundedIcon from "@mui/icons-material/NotificationsNoneRounded";
 import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
 import PointOfSaleRoundedIcon from "@mui/icons-material/PointOfSaleRounded";
+import PublishRoundedIcon from "@mui/icons-material/PublishRounded";
 import ShowChartRoundedIcon from "@mui/icons-material/ShowChartRounded";
 import { AppBar, Avatar, Box, Button, Divider, Drawer, IconButton, List, ListItemButton, ListItemIcon, ListItemText, Stack, Toolbar, Tooltip, Typography, useMediaQuery, useTheme } from "@mui/material";
 import { ReactNode, useState } from "react";
@@ -33,7 +34,7 @@ export default function DashboardLayout() {
 		...(canUseSales ? [{ label: "Customers", to: "/customers", icon: <GroupsRoundedIcon /> }] : []),
 		...(canUseSales ? [{ label: "Inventory", to: "/inventory", icon: <Inventory2RoundedIcon /> }] : []),
 		...(canUseSales ? [{ label: "Sales", to: "/sales", icon: <PointOfSaleRoundedIcon /> }] : []),
-		...(isAdmin ? [{ label: "Categories", to: "/categories", icon: <CategoryRoundedIcon /> }, { label: "Products", to: "/products", icon: <AssessmentRoundedIcon /> }] : []),
+		...(isAdmin ? [{ label: "Categories", to: "/categories", icon: <CategoryRoundedIcon /> }, { label: "Products", to: "/products", icon: <AssessmentRoundedIcon /> }, { label: "Data Import", to: "/data-import", icon: <PublishRoundedIcon /> }] : []),
 	];
 	const sidebar = (
 		<Box sx={{ width: collapsed && !mobile ? 84 : 258, height: "100%", display: "flex", flexDirection: "column", p: 1.5, transition: "width 220ms ease" }}>

@@ -14,6 +14,7 @@ from src.routes.dashboard import router as dashboard_router
 from src.routes.forecasts import router as forecasts_router
 from src.routes.auth import router as auth_router
 from src.routes.companies import router as company_router
+from src.routes.imports import router as import_router
 from src.routes.inventory import router as inventory_router
 from src.routes.products import router as products_router
 from src.routes.sales import router as sales_router
@@ -71,4 +72,5 @@ app.include_router(sales_router, prefix="/api")
 app.include_router(inventory_router, prefix="/api")
 app.include_router(customers_router, prefix="/api")
 app.include_router(forecasts_router, prefix="/api")
+app.include_router(import_router, prefix="/api")
 app.include_router(user_router, prefix="/api")
