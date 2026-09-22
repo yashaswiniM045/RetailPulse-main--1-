@@ -15,6 +15,7 @@ from src.routes.forecasts import router as forecasts_router
 from src.routes.auth import router as auth_router
 from src.routes.companies import router as company_router
 from src.routes.imports import router as import_router
+from src.routes.audit_logs import router as audit_logs_router
 from src.routes.inventory import router as inventory_router
 from src.routes.products import router as products_router
 from src.routes.sales import router as sales_router
@@ -29,8 +30,13 @@ async def lifespan(_: FastAPI):
     with engine.begin() as connection:
         connection.execute(text("ALTER TABLE IF EXISTS audit_logs ADD COLUMN IF NOT EXISTS performed_by VARCHAR(255)"))
         connection.execute(text("ALTER TABLE IF EXISTS audit_logs ADD COLUMN IF NOT EXISTS entity_type VARCHAR(50)"))
+        connection.execute(text("ALTER TABLE IF EXISTS audit_logs ADD COLUMN IF NOT EXISTS resource_id VARCHAR(100)"))
         connection.execute(text("ALTER TABLE IF EXISTS audit_logs ADD COLUMN IF NOT EXISTS entity_name VARCHAR(255)"))
+        connection.execute(text("ALTER TABLE IF EXISTS audit_logs ADD COLUMN IF NOT EXISTS description TEXT"))
         connection.execute(text("ALTER TABLE IF EXISTS audit_logs ADD COLUMN IF NOT EXISTS export_type VARCHAR(20)"))
+        connection.execute(text("ALTER TABLE IF EXISTS audit_logs ADD COLUMN IF NOT EXISTS status VARCHAR(30) NOT NULL DEFAULT 'success'"))
+        connection.execute(text("ALTER TABLE IF EXISTS audit_logs ADD COLUMN IF NOT EXISTS before_values JSON"))
+        connection.execute(text("ALTER TABLE IF EXISTS audit_logs ADD COLUMN IF NOT EXISTS after_values JSON"))
         connection.execute(
             text("ALTER TABLE IF EXISTS products ADD COLUMN IF NOT EXISTS is_out_of_stock BOOLEAN NOT NULL DEFAULT FALSE")
         )
@@ -73,4 +79,5 @@ app.include_router(inventory_router, prefix="/api")
 app.include_router(customers_router, prefix="/api")
 app.include_router(forecasts_router, prefix="/api")
 app.include_router(import_router, prefix="/api")
+app.include_router(audit_logs_router, prefix="/api")
 app.include_router(user_router, prefix="/api")

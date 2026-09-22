@@ -43,6 +43,8 @@ class AuditAction:
     FORECAST_EXPORTED = "Forecast Exported"
     FORECAST_REFRESHED = "Forecast Refreshed"
     INVENTORY_RECOMMENDATION_GENERATED = "Inventory Recommendation Generated"
+    AUDIT_LOGS_EXPORTED = "Audit Logs Exported"
+    IMPORT_COMPLETED = "Import"
 
 
 def create_audit_log(
@@ -54,8 +56,13 @@ def create_audit_log(
     request: Request | None,
     performed_by: str | None = None,
     entity_type: str | None = None,
+    resource_id: int | str | None = None,
     entity_name: str | None = None,
+    description: str | None = None,
     export_type: str | None = None,
+    status: str = "success",
+    before_values: dict | None = None,
+    after_values: dict | None = None,
 ) -> None:
     browser = request.headers.get("user-agent") if request else None
     ip_address = request.client.host if request and request.client else None
@@ -65,9 +72,14 @@ def create_audit_log(
             user_id=user_id,
             performed_by=performed_by,
             entity_type=entity_type,
+            resource_id=str(resource_id) if resource_id is not None else None,
             entity_name=entity_name,
+            description=description,
             export_type=export_type,
             action=action,
+            status=status,
+            before_values=before_values,
+            after_values=after_values,
             ip_address=ip_address,
             browser=browser,
         )

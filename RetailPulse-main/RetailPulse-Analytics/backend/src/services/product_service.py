@@ -166,9 +166,11 @@ def create_product(db: Session, current_user: User, payload: ProductUpsert, requ
         user_id=current_user.id,
         performed_by=current_user.name,
         entity_type="Product",
+        resource_id=product.id,
         entity_name=product.name,
         action=AuditAction.PRODUCT_CREATED,
         request=request,
+        description=f"Product {product.name} created",
     )
     db.commit()
     return _product_payload(product)
@@ -185,6 +187,12 @@ def update_product(db: Session, current_user: User, product_id: int, payload: Pr
     if _duplicate_name_exists(db, current_user.company_id, category.id, name, exclude_id=product.id):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Product name already exists in this category")
 
+    before_values = {
+        "status": product.status.value,
+        "unitPrice": float(product.unit_price),
+        "stockQuantity": product.stock_quantity,
+        "sku": product.sku,
+    }
     previous_status = product.status
     product.category_id = category.id
     product.name = name
@@ -215,9 +223,18 @@ def update_product(db: Session, current_user: User, product_id: int, payload: Pr
         user_id=current_user.id,
         performed_by=current_user.name,
         entity_type="Product",
+        resource_id=product.id,
         entity_name=product.name,
         action=AuditAction.PRODUCT_UPDATED,
         request=request,
+        description=f"Product {product.name} updated",
+        before_values=before_values,
+        after_values={
+            "status": product.status.value,
+            "unitPrice": float(product.unit_price),
+            "stockQuantity": product.stock_quantity,
+            "sku": product.sku,
+        },
     )
     if previous_status != product.status:
         create_audit_log(
@@ -226,9 +243,13 @@ def update_product(db: Session, current_user: User, product_id: int, payload: Pr
             user_id=current_user.id,
             performed_by=current_user.name,
             entity_type="Product",
+            resource_id=product.id,
             entity_name=product.name,
             action=AuditAction.PRODUCT_ACTIVATED if product.status == ProductStatus.ACTIVE else AuditAction.PRODUCT_DEACTIVATED,
             request=request,
+            description=f"Product status changed from {previous_status.value} to {product.status.value}",
+            before_values={"status": previous_status.value},
+            after_values={"status": product.status.value},
         )
 
     db.commit()
@@ -249,9 +270,13 @@ def set_product_status(db: Session, current_user: User, product_id: int, payload
         user_id=current_user.id,
         performed_by=current_user.name,
         entity_type="Product",
+        resource_id=product.id,
         entity_name=product.name,
         action=AuditAction.PRODUCT_ACTIVATED if next_status == ProductStatus.ACTIVE else AuditAction.PRODUCT_DEACTIVATED,
         request=request,
+        description=f"Product status changed to {next_status.value}",
+        before_values={"status": product.status.value},
+        after_values={"status": next_status.value},
     )
     db.commit()
     product = _get_product_for_company(db, current_user.company_id, product.id)
@@ -273,9 +298,11 @@ def delete_product(db: Session, current_user: User, product_id: int, request: Re
         user_id=current_user.id,
         performed_by=current_user.name,
         entity_type="Product",
+        resource_id=product.id,
         entity_name=product.name,
         action=AuditAction.PRODUCT_DELETED,
         request=request,
+        description=f"Product {product.name} deleted",
     )
     db.delete(product)
     db.commit()

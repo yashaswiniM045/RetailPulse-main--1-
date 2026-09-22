@@ -255,9 +255,13 @@ def _apply_inventory_change(
         user_id=actor.id if actor else None,
         performed_by=actor.name if actor else None,
         entity_type="Product",
+        resource_id=product.id,
         entity_name=product.name,
         action=action,
         request=request,
+        description=f"Stock changed from {previous_quantity} to {updated_quantity} ({quantity_delta:+d})",
+        before_values={"stockQuantity": previous_quantity, "stockStatus": previous_status.value},
+        after_values={"stockQuantity": updated_quantity, "stockStatus": inventory.stock_status.value},
     )
 
     notifications = _create_stock_transition_records(

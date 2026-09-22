@@ -13,6 +13,7 @@ from src.models.customer import Customer
 from src.models.import_history import ImportErrorRecord, ImportHistory, ImportStatus, ImportType
 from src.models.product import Product
 from src.models.sale import Sale
+from src.services.audit_service import AuditAction, create_audit_log
 from src.models.user import User
 
 REQUIRED_COLUMNS = {
@@ -380,6 +381,21 @@ def process_import_rows(db: Session, current_user: User, import_type: str, rows:
         import_record.status = ImportStatus.FAILED.value
         import_record.completed_at = datetime.utcnow()
         db.commit()
+        create_audit_log(
+            db,
+            company_id=current_user.company_id,
+            user_id=current_user.id,
+            performed_by=current_user.name,
+            entity_type="Import",
+            resource_id=import_record.id,
+            entity_name=file_name,
+            action=AuditAction.IMPORT_COMPLETED,
+            request=request,
+            description=f"Imported {import_type_key} from {file_name}; no valid rows",
+            status="failed",
+            after_values={"totalRecords": validation["total_records"], "successfulRecords": 0},
+        )
+        db.commit()
         return {
             "importId": import_record.id,
             "totalRecords": validation["total_records"],
@@ -465,6 +481,21 @@ def process_import_rows(db: Session, current_user: User, import_type: str, rows:
         import_record.duplicate_records = validation["duplicate_count"]
         import_record.status = ImportStatus.COMPLETED_WITH_ERRORS.value if validation["invalid_count"] else ImportStatus.COMPLETED.value
         import_record.completed_at = datetime.utcnow()
+        db.commit()
+        create_audit_log(
+            db,
+            company_id=current_user.company_id,
+            user_id=current_user.id,
+            performed_by=current_user.name,
+            entity_type="Import",
+            resource_id=import_record.id,
+            entity_name=file_name,
+            action=AuditAction.IMPORT_COMPLETED,
+            request=request,
+            description=f"Imported {import_type_key} from {file_name}",
+            status="success" if not validation["invalid_count"] else "partial",
+            after_values={"totalRecords": validation["total_records"], "successfulRecords": inserted, "failedRecords": validation["invalid_count"]},
+        )
         db.commit()
         return {
             "importId": import_record.id,

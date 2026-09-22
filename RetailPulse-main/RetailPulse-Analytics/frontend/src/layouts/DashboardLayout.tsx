@@ -1,4 +1,5 @@
 import AssessmentRoundedIcon from "@mui/icons-material/AssessmentRounded";
+import HistoryRoundedIcon from "@mui/icons-material/HistoryRounded";
 import CategoryRoundedIcon from "@mui/icons-material/CategoryRounded";
 import ChevronLeftRoundedIcon from "@mui/icons-material/ChevronLeftRounded";
 import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
@@ -34,7 +35,7 @@ export default function DashboardLayout() {
 		...(canUseSales ? [{ label: "Customers", to: "/customers", icon: <GroupsRoundedIcon /> }] : []),
 		...(canUseSales ? [{ label: "Inventory", to: "/inventory", icon: <Inventory2RoundedIcon /> }] : []),
 		...(canUseSales ? [{ label: "Sales", to: "/sales", icon: <PointOfSaleRoundedIcon /> }] : []),
-		...(isAdmin ? [{ label: "Categories", to: "/categories", icon: <CategoryRoundedIcon /> }, { label: "Products", to: "/products", icon: <AssessmentRoundedIcon /> }, { label: "Data Import", to: "/data-import", icon: <PublishRoundedIcon /> }] : []),
+		...(isAdmin ? [{ label: "Categories", to: "/categories", icon: <CategoryRoundedIcon /> }, { label: "Products", to: "/products", icon: <AssessmentRoundedIcon /> }, { label: "Data Import", to: "/data-import", icon: <PublishRoundedIcon /> }, { label: "Audit Logs", to: "/audit-logs", icon: <HistoryRoundedIcon /> }] : []),
 	];
 	const sidebar = (
 		<Box sx={{ width: collapsed && !mobile ? 84 : 258, height: "100%", display: "flex", flexDirection: "column", p: 1.5, transition: "width 220ms ease" }}>
