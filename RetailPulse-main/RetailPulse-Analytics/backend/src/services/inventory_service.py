@@ -17,6 +17,7 @@ from src.models.product import Product
 from src.models.user import User
 from src.schemas.inventory import InventoryAdjustmentCreate, InventoryReorderLevelUpdate
 from src.services.audit_service import AuditAction, create_audit_log
+from src.services.notification_service import create_notification, resolve_notification
 
 
 def _resolve_stock_status(available_stock: int, reorder_level: int) -> StockStatus:
@@ -182,6 +183,57 @@ def _create_stock_transition_records(
     return notifications
 
 
+def _sync_central_inventory_alerts(db: Session, inventory: Inventory, product: Product) -> None:
+    company_id = inventory.company_id
+    product_id = product.id
+    stock = inventory.available_stock
+    reorder = inventory.reorder_level
+    base_key = f"inventory:{product_id}"
+    alert_conditions = {
+        "stockout": stock <= 0,
+        "low-stock": 0 < stock < reorder,
+        # No maximum-stock setting exists yet. Until one is configured, overstock is
+        # defined as available stock greater than four times the reorder point.
+        "overstock": reorder > 0 and stock > reorder * 4,
+    }
+    alert_details = {
+        "productName": product.name,
+        "sku": product.sku,
+        "currentStock": stock,
+        "reorderPoint": reorder,
+        "recommendedQuantity": max(reorder * 2 - stock, 0),
+    }
+    alert_specs = {
+        "stockout": ("Stockout", "Critical", "Stockout Alert", f"{product.name} has reached 0 available stock."),
+        "low-stock": ("Low Stock", "Medium", "Reorder Alert", f"{product.name} is below its reorder point ({stock} available; reorder point {reorder})."),
+        "overstock": ("Overstock", "Low", "Overstock Alert", f"{product.name} has more than four times its reorder point in available stock."),
+    }
+    for kind, is_active in alert_conditions.items():
+        event_key = f"{base_key}:{kind}"
+        if is_active:
+            type_name, priority, title, message = alert_specs[kind]
+            create_notification(
+                db,
+                company_id=company_id,
+                event_key=event_key,
+                notification_type=type_name.lower().replace(" ", "-"),
+                title=title,
+                message=message,
+                priority=priority.lower(),
+                resource_type="Product",
+                resource_id=product_id,
+                details=alert_details,
+            )
+        else:
+            resolve_notification(db, company_id=company_id, event_key=event_key)
+
+
+def evaluate_inventory_alerts(db: Session, product: Product) -> None:
+    """Evaluate current stock once after product creation/import or inventory changes."""
+    inventory = ensure_inventory_for_product(db, product)
+    _sync_central_inventory_alerts(db, inventory, product)
+
+
 def _get_product_for_company(db: Session, company_id: int, product_id: int) -> Product:
     product = db.scalar(
         select(Product)
@@ -273,6 +325,7 @@ def _apply_inventory_change(
         previous_status=previous_status,
         next_status=inventory.stock_status,
     )
+    _sync_central_inventory_alerts(db, inventory, product)
 
     return notifications
 

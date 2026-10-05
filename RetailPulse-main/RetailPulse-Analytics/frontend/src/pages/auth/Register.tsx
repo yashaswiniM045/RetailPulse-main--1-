@@ -1,4 +1,5 @@
 import { Button, Grid, Stack, TextField, Typography } from "@mui/material";
+import axios from "axios";
 import { useForm } from "react-hook-form";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
@@ -22,8 +23,16 @@ export default function Register() {
 			await registerUser(values);
 			notify("Company registered successfully", "success");
 			navigate("/dashboard");
-		} catch {
-			notify("Unable to register company. Check for duplicate email entries.", "error");
+		} catch (error: unknown) {
+			const detail = axios.isAxiosError(error) ? error.response?.data?.detail : undefined;
+			const message = typeof detail === "string"
+				? detail
+				: Array.isArray(detail)
+					? detail.map((item: { msg?: string }) => item.msg).filter(Boolean).join("; ")
+					: axios.isAxiosError(error) && !error.response
+						? "Cannot reach the server. Check that the backend is running, then try again."
+						: "Unable to register company. Check the registration details and try again.";
+			notify(message, "error");
 		}
 	});
 

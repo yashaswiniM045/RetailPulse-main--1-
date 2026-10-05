@@ -15,6 +15,7 @@ from src.models.sale import PaymentMethod, PaymentStatus, Sale, SaleItem, SalesC
 from src.models.user import User
 from src.schemas.sale import SaleUpsert
 from src.services.audit_service import AuditAction, create_audit_log
+from src.services.notification_service import create_notification
 from src.services.customer_service import sync_customer_purchase_summary
 from src.services.forecast_service import refresh_forecasts_for_company
 from src.services.inventory_service import apply_sale_stock_change
@@ -344,6 +345,19 @@ def create_sale(db: Session, current_user: User, payload: SaleUpsert, request: R
     sale.total_amount = total_amount
     sale.discount_total = discount_total
     sale.tax_total = tax_total
+    if total_amount >= 10000:
+        create_notification(
+            db,
+            company_id=current_user.company_id,
+            event_key=f"sale:{sale.id}:high-value",
+            notification_type="sales-alert",
+            title="High-value sale",
+            message=f"Sale {sale.invoice_number} reached {total_amount:,.2f}.",
+            priority="medium",
+            resource_type="Sale",
+            resource_id=sale.id,
+            details={"invoiceNumber": sale.invoice_number, "totalAmount": float(total_amount), "customerName": sale.customer_name},
+        )
 
     create_audit_log(
         db,
@@ -351,9 +365,12 @@ def create_sale(db: Session, current_user: User, payload: SaleUpsert, request: R
         user_id=current_user.id,
         performed_by=current_user.name,
         entity_type="Sale",
+        resource_id=sale.id,
         entity_name=sale.invoice_number,
         action=AuditAction.SALE_CREATED,
         request=request,
+        description=f"Sale {sale.invoice_number} created for {sale.total_amount}",
+        after_values={"invoiceNumber": sale.invoice_number, "totalAmount": float(sale.total_amount), "paymentStatus": sale.payment_status.value},
     )
 
     if sale.customer_id:
@@ -378,6 +395,7 @@ def create_sale(db: Session, current_user: User, payload: SaleUpsert, request: R
 
 def update_sale(db: Session, current_user: User, sale_id: int, payload: SaleUpsert, request: Request) -> dict:
     sale = _get_sale_for_company(db, current_user.company_id, sale_id)
+    before_values = {"customerName": sale.customer_name, "saleDate": sale.sale_date.isoformat(), "totalAmount": float(sale.total_amount), "paymentStatus": sale.payment_status.value}
     previous_customer_id = sale.customer_id
 
     # Restore stock for old items before applying new item set.
@@ -430,9 +448,13 @@ def update_sale(db: Session, current_user: User, sale_id: int, payload: SaleUpse
         user_id=current_user.id,
         performed_by=current_user.name,
         entity_type="Sale",
+        resource_id=sale.id,
         entity_name=sale.invoice_number,
         action=AuditAction.SALE_UPDATED,
         request=request,
+        description=f"Sale {sale.invoice_number} updated",
+        before_values=before_values,
+        after_values={"customerName": sale.customer_name, "saleDate": sale.sale_date.isoformat(), "totalAmount": float(sale.total_amount), "paymentStatus": sale.payment_status.value},
     )
 
     if previous_customer_id:
@@ -597,9 +619,12 @@ def delete_sale(db: Session, current_user: User, sale_id: int, request: Request)
         user_id=current_user.id,
         performed_by=current_user.name,
         entity_type="Sale",
+        resource_id=sale.id,
         entity_name=sale.invoice_number,
         action=AuditAction.SALE_DELETED,
         request=request,
+        description=f"Sale {sale.invoice_number} deleted",
+        before_values={"invoiceNumber": sale.invoice_number, "totalAmount": float(sale.total_amount)},
     )
 
     db.delete(sale)

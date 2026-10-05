@@ -5,7 +5,7 @@ import SearchIcon from "@mui/icons-material/Search";
 import { Alert, Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Grid, MenuItem, Pagination, Paper, Stack, TextField, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { exportAuditLogsCsv, exportAuditLogsPdf, getAuditLog, listAuditLogs, listAuditUsers, AuditLogFilters, AuditLogItem } from "../../api/auditLogApi";
+import { exportAuditLogsCsv, exportAuditLogsPdf, getAuditLog, getAuditLogFilterOptions, listAuditLogs, listAuditUsers, AuditLogFilters, AuditLogItem } from "../../api/auditLogApi";
 import { useNotification } from "../../context/NotificationContext";
 
 const initialFilters = { search: "", userId: "", action: "", resourceType: "", status: "", startDate: "", endDate: "", sortOrder: "desc" as const };
@@ -22,6 +22,7 @@ export default function AuditLogsPage() {
 	const queryFilters: AuditLogFilters = { ...filters, userId: filters.userId ? Number(filters.userId) : undefined, page, pageSize: 25 };
 	const query = useQuery({ queryKey: ["audit-logs", queryFilters], queryFn: () => listAuditLogs(queryFilters), refetchInterval: 15000 });
 	const usersQuery = useQuery({ queryKey: ["audit-log-users"], queryFn: listAuditUsers });
+	const optionsQuery = useQuery({ queryKey: ["audit-log-filter-options"], queryFn: getAuditLogFilterOptions });
 	const detailQuery = useQuery({ queryKey: ["audit-log", selectedId], queryFn: () => getAuditLog(selectedId as number), enabled: selectedId !== null });
 	const logs = query.data?.items ?? [];
 
@@ -48,9 +49,9 @@ export default function AuditLogsPage() {
 				<Grid container spacing={2}>
 					<Grid size={{ xs: 12, md: 4 }}><TextField fullWidth label="Search activity" value={filters.search} onChange={(event) => updateFilter("search", event.target.value)} slotProps={{ input: { startAdornment: <SearchIcon sx={{ mr: 1, color: "text.secondary" }} /> } }} /></Grid>
 					<Grid size={{ xs: 12, sm: 6, md: 2 }}><TextField fullWidth select label="User" value={filters.userId} onChange={(event) => updateFilter("userId", event.target.value)}><MenuItem value="">All users</MenuItem>{(usersQuery.data ?? []).map((user) => <MenuItem key={user.id} value={user.id}>{user.name}</MenuItem>)}</TextField></Grid>
-					<Grid size={{ xs: 12, sm: 6, md: 2 }}><TextField fullWidth select label="Action" value={filters.action} onChange={(event) => updateFilter("action", event.target.value)}><MenuItem value="">All actions</MenuItem><MenuItem value="Product Created">Product Created</MenuItem><MenuItem value="Product Updated">Product Updated</MenuItem><MenuItem value="Product Deleted">Product Deleted</MenuItem><MenuItem value="Product Deactivated">Product Deactivated</MenuItem><MenuItem value="Customer Created">Customer Created</MenuItem><MenuItem value="Sale Created">Sale Created</MenuItem><MenuItem value="Import">Import</MenuItem><MenuItem value="User Login">User Login</MenuItem><MenuItem value="User Logout">User Logout</MenuItem><MenuItem value="Stock Adjusted">Stock Adjusted</MenuItem><MenuItem value="Audit Logs Exported">Audit Logs Exported</MenuItem></TextField></Grid>
-					<Grid size={{ xs: 12, sm: 6, md: 2 }}><TextField fullWidth select label="Resource" value={filters.resourceType} onChange={(event) => updateFilter("resourceType", event.target.value)}><MenuItem value="">All resources</MenuItem><MenuItem value="Product">Product</MenuItem><MenuItem value="Customer">Customer</MenuItem><MenuItem value="Sale">Sale</MenuItem><MenuItem value="Import">Import</MenuItem><MenuItem value="User">User</MenuItem></TextField></Grid>
-					<Grid size={{ xs: 12, sm: 6, md: 2 }}><TextField fullWidth select label="Status" value={filters.status} onChange={(event) => updateFilter("status", event.target.value)}><MenuItem value="">All statuses</MenuItem><MenuItem value="success">Success</MenuItem><MenuItem value="partial">Partial</MenuItem><MenuItem value="failed">Failed</MenuItem></TextField></Grid>
+					<Grid size={{ xs: 12, sm: 6, md: 2 }}><TextField fullWidth select label="Action" value={filters.action} onChange={(event) => updateFilter("action", event.target.value)}><MenuItem value="">All actions</MenuItem>{(optionsQuery.data?.actions ?? []).map((action) => <MenuItem key={action} value={action}>{action}</MenuItem>)}</TextField></Grid>
+					<Grid size={{ xs: 12, sm: 6, md: 2 }}><TextField fullWidth select label="Resource" value={filters.resourceType} onChange={(event) => updateFilter("resourceType", event.target.value)}><MenuItem value="">All resources</MenuItem>{(optionsQuery.data?.resourceTypes ?? []).map((resource) => <MenuItem key={resource} value={resource}>{resource}</MenuItem>)}</TextField></Grid>
+					<Grid size={{ xs: 12, sm: 6, md: 2 }}><TextField fullWidth select label="Status" value={filters.status} onChange={(event) => updateFilter("status", event.target.value)}><MenuItem value="">All statuses</MenuItem>{(optionsQuery.data?.statuses ?? []).map((status) => <MenuItem key={status} value={status}>{status}</MenuItem>)}</TextField></Grid>
 					<Grid size={{ xs: 12, sm: 6, md: 2 }}><TextField fullWidth select label="Sort" value={filters.sortOrder} onChange={(event) => updateFilter("sortOrder", event.target.value)}><MenuItem value="desc">Newest first</MenuItem><MenuItem value="asc">Oldest first</MenuItem></TextField></Grid>
 					<Grid size={{ xs: 12, sm: 6, md: 3 }}><TextField fullWidth type="date" label="From" value={filters.startDate} onChange={(event) => updateFilter("startDate", event.target.value)} slotProps={{ inputLabel: { shrink: true } }} /></Grid>
 					<Grid size={{ xs: 12, sm: 6, md: 3 }}><TextField fullWidth type="date" label="To" value={filters.endDate} onChange={(event) => updateFilter("endDate", event.target.value)} slotProps={{ inputLabel: { shrink: true } }} /></Grid>

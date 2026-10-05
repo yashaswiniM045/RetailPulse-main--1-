@@ -353,9 +353,11 @@ def create_customer(db: Session, current_user: User, payload: CustomerUpsert, re
         user_id=current_user.id,
         performed_by=current_user.name,
         entity_type="Customer",
+        resource_id=customer.id,
         entity_name=customer.full_name,
         action=AuditAction.CUSTOMER_CREATED,
         request=request,
+        description=f"Customer {customer.full_name} created",
     )
 
     db.commit()
@@ -374,6 +376,7 @@ def update_customer(db: Session, current_user: User, customer_id: int, payload: 
     )
 
     previous_status = customer.status
+    before_values = {"name": customer.full_name, "email": customer.email, "phone": customer.phone_number, "status": customer.status.value}
     customer.full_name = payload.full_name
     customer.email = str(payload.email).lower()
     customer.phone_number = payload.phone_number
@@ -422,9 +425,13 @@ def update_customer(db: Session, current_user: User, customer_id: int, payload: 
             user_id=current_user.id,
             performed_by=current_user.name,
             entity_type="Customer",
+            resource_id=customer.id,
             entity_name=customer.full_name,
             action=action,
             request=request,
+            description=f"Customer status changed from {previous_status.value} to {customer.status.value}",
+            before_values={"status": previous_status.value},
+            after_values={"status": customer.status.value},
         )
 
     create_audit_log(
@@ -433,9 +440,13 @@ def update_customer(db: Session, current_user: User, customer_id: int, payload: 
         user_id=current_user.id,
         performed_by=current_user.name,
         entity_type="Customer",
+        resource_id=customer.id,
         entity_name=customer.full_name,
         action=AuditAction.CUSTOMER_UPDATED,
         request=request,
+        description=f"Customer {customer.full_name} profile updated",
+        before_values=before_values,
+        after_values={"name": customer.full_name, "email": customer.email, "phone": customer.phone_number, "status": customer.status.value},
     )
 
     db.commit()
@@ -445,6 +456,8 @@ def update_customer(db: Session, current_user: User, customer_id: int, payload: 
 
 def delete_customer(db: Session, current_user: User, customer_id: int, request: Request) -> None:
     customer = _get_customer_for_company(db, current_user.company_id, customer_id)
+    previous_status = customer.status
+    previous_deleted = customer.is_deleted
     customer.is_deleted = True
     customer.status = CustomerStatus.INACTIVE
     customer.updated_by = current_user.id
@@ -455,9 +468,13 @@ def delete_customer(db: Session, current_user: User, customer_id: int, request: 
         user_id=current_user.id,
         performed_by=current_user.name,
         entity_type="Customer",
+        resource_id=customer.id,
         entity_name=customer.full_name,
         action=AuditAction.CUSTOMER_DELETED,
         request=request,
+        description=f"Customer {customer.full_name} soft deleted",
+        before_values={"status": previous_status.value, "isDeleted": previous_deleted},
+        after_values={"status": CustomerStatus.INACTIVE.value, "isDeleted": True},
     )
     _append_timeline(
         db,
@@ -501,9 +518,13 @@ def update_customer_status(
         user_id=current_user.id,
         performed_by=current_user.name,
         entity_type="Customer",
+        resource_id=customer.id,
         entity_name=customer.full_name,
         action=AuditAction.CUSTOMER_STATUS_CHANGED,
         request=request,
+        description=f"Customer status changed from {previous_status.value} to {status_value.value}",
+        before_values={"status": previous_status.value},
+        after_values={"status": status_value.value},
     )
 
     db.commit()

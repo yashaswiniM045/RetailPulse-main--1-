@@ -121,3 +121,19 @@ def get_audit_log(db: Session, company_id: int, audit_id: int) -> dict[str, Any]
     if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Audit log not found")
     return _serialize(*row)
+
+
+def get_audit_filter_options(db: Session, company_id: int) -> dict[str, list[str]]:
+    actions = db.scalars(
+        select(AuditLog.action).where(AuditLog.company_id == company_id).distinct().order_by(AuditLog.action)
+    ).all()
+    resource_types = db.scalars(
+        select(AuditLog.entity_type)
+        .where(AuditLog.company_id == company_id, AuditLog.entity_type.is_not(None))
+        .distinct()
+        .order_by(AuditLog.entity_type)
+    ).all()
+    statuses = db.scalars(
+        select(AuditLog.status).where(AuditLog.company_id == company_id).distinct().order_by(AuditLog.status)
+    ).all()
+    return {"actions": list(actions), "resourceTypes": list(resource_types), "statuses": list(statuses)}

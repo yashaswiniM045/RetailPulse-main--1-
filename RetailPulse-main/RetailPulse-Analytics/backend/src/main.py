@@ -7,7 +7,7 @@ from sqlalchemy import text
 from src.config.database import engine
 from src.config.env import get_settings
 from src.models.base import Base
-from src.models import audit_log, category, company, customer, forecast, inventory, product, refresh_token, sale, user
+from src.models import audit_log, category, company, customer, forecast, inventory, notification, product, refresh_token, sale, user
 from src.routes.categories import router as categories_router
 from src.routes.customers import router as customers_router
 from src.routes.dashboard import router as dashboard_router
@@ -16,6 +16,7 @@ from src.routes.auth import router as auth_router
 from src.routes.companies import router as company_router
 from src.routes.imports import router as import_router
 from src.routes.audit_logs import router as audit_logs_router
+from src.routes.notifications import router as notifications_router
 from src.routes.inventory import router as inventory_router
 from src.routes.products import router as products_router
 from src.routes.sales import router as sales_router
@@ -37,6 +38,10 @@ async def lifespan(_: FastAPI):
         connection.execute(text("ALTER TABLE IF EXISTS audit_logs ADD COLUMN IF NOT EXISTS status VARCHAR(30) NOT NULL DEFAULT 'success'"))
         connection.execute(text("ALTER TABLE IF EXISTS audit_logs ADD COLUMN IF NOT EXISTS before_values JSON"))
         connection.execute(text("ALTER TABLE IF EXISTS audit_logs ADD COLUMN IF NOT EXISTS after_values JSON"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_audit_logs_company_created_at ON audit_logs (company_id, created_at)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_audit_logs_company_action ON audit_logs (company_id, action)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_audit_logs_company_resource ON audit_logs (company_id, entity_type)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_audit_logs_company_status ON audit_logs (company_id, status)"))
         connection.execute(
             text("ALTER TABLE IF EXISTS products ADD COLUMN IF NOT EXISTS is_out_of_stock BOOLEAN NOT NULL DEFAULT FALSE")
         )
@@ -80,4 +85,5 @@ app.include_router(customers_router, prefix="/api")
 app.include_router(forecasts_router, prefix="/api")
 app.include_router(import_router, prefix="/api")
 app.include_router(audit_logs_router, prefix="/api")
+app.include_router(notifications_router, prefix="/api")
 app.include_router(user_router, prefix="/api")

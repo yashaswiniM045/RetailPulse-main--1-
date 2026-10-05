@@ -9,7 +9,7 @@ from src.models.sale import SaleItem
 from src.models.user import User
 from src.schemas.product import ProductStatusUpdate, ProductUpsert
 from src.services.audit_service import AuditAction, create_audit_log
-from src.services.inventory_service import ensure_inventory_for_product
+from src.services.inventory_service import ensure_inventory_for_product, evaluate_inventory_alerts
 
 
 def _product_payload(product: Product) -> dict:
@@ -158,6 +158,7 @@ def create_product(db: Session, current_user: User, payload: ProductUpsert, requ
     db.add(product)
     db.flush()
     ensure_inventory_for_product(db, product)
+    evaluate_inventory_alerts(db, product)
     db.commit()
     product = _get_product_for_company(db, current_user.company_id, product.id)
     create_audit_log(
@@ -216,6 +217,7 @@ def update_product(db: Session, current_user: User, product_id: int, payload: Pr
         inventory.stock_status = StockStatus.IN_STOCK
     product.stock_quantity = inventory.current_stock
     product.is_out_of_stock = inventory.available_stock == 0
+    evaluate_inventory_alerts(db, product)
 
     create_audit_log(
         db,
@@ -263,6 +265,7 @@ def set_product_status(db: Session, current_user: User, product_id: int, payload
     if product.status == next_status:
         return _product_payload(product)
 
+    previous_status = product.status
     product.status = next_status
     create_audit_log(
         db,
@@ -275,7 +278,7 @@ def set_product_status(db: Session, current_user: User, product_id: int, payload
         action=AuditAction.PRODUCT_ACTIVATED if next_status == ProductStatus.ACTIVE else AuditAction.PRODUCT_DEACTIVATED,
         request=request,
         description=f"Product status changed to {next_status.value}",
-        before_values={"status": product.status.value},
+        before_values={"status": previous_status.value},
         after_values={"status": next_status.value},
     )
     db.commit()

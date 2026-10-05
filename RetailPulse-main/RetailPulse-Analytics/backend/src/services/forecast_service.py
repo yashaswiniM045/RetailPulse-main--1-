@@ -23,6 +23,7 @@ from src.models.sale import Sale, SaleItem
 from src.models.user import User
 from src.schemas.forecast import ForecastSortBy, ForecastSortDirection
 from src.services.audit_service import AuditAction, create_audit_log
+from src.services.notification_service import create_notification, resolve_notification
 
 
 def _to_float(value: object) -> float:
@@ -406,6 +407,40 @@ def _create_notifications_for_forecasts(db: Session, company_id: int, forecasts:
         current_stock = _to_int(inventory.current_stock if inventory else 0)
         predicted = _to_float(forecast.predicted_demand)
         growth_rate = _to_float(forecast.growth_rate)
+        risk_event_key = f"inventory:{forecast.product_id}:stockout-risk"
+        if current_stock > 0 and predicted >= current_stock:
+            create_notification(
+                db,
+                company_id=company_id,
+                event_key=risk_event_key,
+                notification_type="stockout-risk",
+                title="Stockout risk",
+                message=f"{product.name} is forecast to run out of stock during {forecast.forecast_period.value}.",
+                priority="high",
+                resource_type="Product",
+                resource_id=product.id,
+                details={"productName": product.name, "sku": product.sku, "currentStock": current_stock, "predictedDemand": predicted, "forecastStartDate": str(forecast.forecast_start_date), "forecastEndDate": str(forecast.forecast_end_date)},
+            )
+        else:
+            resolve_notification(db, company_id=company_id, event_key=risk_event_key)
+
+        overstock_event_key = f"inventory:{forecast.product_id}:overstock"
+        overstock_risk = forecast.recommendation_type == InventoryRecommendationType.OVERSTOCK_RISK
+        if overstock_risk:
+            create_notification(
+                db,
+                company_id=company_id,
+                event_key=overstock_event_key,
+                notification_type="overstock",
+                title="Overstock risk",
+                message=f"{product.name} has inventory above forecasted demand.",
+                priority="low",
+                resource_type="Product",
+                resource_id=product.id,
+                details={"productName": product.name, "sku": product.sku, "currentStock": current_stock, "predictedDemand": predicted},
+            )
+        else:
+            resolve_notification(db, company_id=company_id, event_key=overstock_event_key)
 
         messages: list[tuple[ForecastNotificationType, str]] = []
         if current_stock <= 0 or predicted >= current_stock:

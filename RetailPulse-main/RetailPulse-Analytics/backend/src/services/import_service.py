@@ -14,6 +14,8 @@ from src.models.import_history import ImportErrorRecord, ImportHistory, ImportSt
 from src.models.product import Product
 from src.models.sale import Sale
 from src.services.audit_service import AuditAction, create_audit_log
+from src.services.notification_service import create_notification
+from src.services.inventory_service import evaluate_inventory_alerts
 from src.models.user import User
 
 REQUIRED_COLUMNS = {
@@ -395,6 +397,18 @@ def process_import_rows(db: Session, current_user: User, import_type: str, rows:
             status="failed",
             after_values={"totalRecords": validation["total_records"], "successfulRecords": 0},
         )
+        create_notification(
+            db,
+            company_id=current_user.company_id,
+            event_key=f"import:{import_record.id}:failed",
+            notification_type="import-failed",
+            title="Import failed",
+            message=f"{file_name} could not be imported because it contained no valid rows.",
+            priority="high",
+            resource_type="Import",
+            resource_id=import_record.id,
+            details={"importType": import_type_key, "filename": file_name, "totalRecords": validation["total_records"], "failedRecords": validation["invalid_count"]},
+        )
         db.commit()
         return {
             "importId": import_record.id,
@@ -411,6 +425,7 @@ def process_import_rows(db: Session, current_user: User, import_type: str, rows:
         import_record.status = ImportStatus.PROCESSING.value
         db.commit()
         inserted = 0
+        imported_products: list[Product] = []
         for row in validation["valid_rows"]:
             row_map = _normalize_field_lookup(row)
             if import_type_key == "products":
@@ -422,8 +437,7 @@ def process_import_rows(db: Session, current_user: User, import_type: str, rows:
                 category = db.scalar(select(Category).where(Category.company_id == current_user.company_id, Category.name == category_name))
                 if category is None:
                     raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Category '{category_name}' not found")
-                db.add(
-                    Product(
+                imported_product = Product(
                         company_id=current_user.company_id,
                         category_id=category.id,
                         name=product_name,
@@ -434,7 +448,8 @@ def process_import_rows(db: Session, current_user: User, import_type: str, rows:
                         is_out_of_stock=stock_quantity == 0,
                         unit_of_measure="pcs",
                     )
-                )
+                db.add(imported_product)
+                imported_products.append(imported_product)
             elif import_type_key == "customers":
                 full_name = _get_column_value(row_map, "Name", "name", "customer name")
                 email = _get_column_value(row_map, "Email", "email")
@@ -475,6 +490,9 @@ def process_import_rows(db: Session, current_user: User, import_type: str, rows:
                     )
                 )
             inserted += 1
+        db.flush()
+        for imported_product in imported_products:
+            evaluate_inventory_alerts(db, imported_product)
         db.commit()
         import_record.successful_records = inserted
         import_record.failed_records = validation["invalid_count"]
@@ -496,6 +514,18 @@ def process_import_rows(db: Session, current_user: User, import_type: str, rows:
             status="success" if not validation["invalid_count"] else "partial",
             after_values={"totalRecords": validation["total_records"], "successfulRecords": inserted, "failedRecords": validation["invalid_count"]},
         )
+        create_notification(
+            db,
+            company_id=current_user.company_id,
+            event_key=f"import:{import_record.id}:completed",
+            notification_type="import-completed",
+            title="Import completed" if not validation["invalid_count"] else "Import completed with errors",
+            message=f"{file_name}: {inserted} records imported, {validation['invalid_count']} failed.",
+            priority="medium" if validation["invalid_count"] else "low",
+            resource_type="Import",
+            resource_id=import_record.id,
+            details={"importType": import_type_key, "filename": file_name, "totalRecords": validation["total_records"], "successfulRecords": inserted, "failedRecords": validation["invalid_count"]},
+        )
         db.commit()
         return {
             "importId": import_record.id,
@@ -512,6 +542,33 @@ def process_import_rows(db: Session, current_user: User, import_type: str, rows:
         import_record.status = ImportStatus.FAILED.value
         import_record.completed_at = datetime.utcnow()
         import_record.failed_records = validation["total_records"]
+        db.commit()
+        create_audit_log(
+            db,
+            company_id=current_user.company_id,
+            user_id=current_user.id,
+            performed_by=current_user.name,
+            entity_type="Import",
+            resource_id=import_record.id,
+            entity_name=file_name,
+            action=AuditAction.IMPORT_COMPLETED,
+            request=request,
+            description=f"Import of {import_type_key} from {file_name} failed and was rolled back",
+            status="failed",
+            after_values={"totalRecords": validation["total_records"], "successfulRecords": 0},
+        )
+        create_notification(
+            db,
+            company_id=current_user.company_id,
+            event_key=f"import:{import_record.id}:failed",
+            notification_type="import-failed",
+            title="Import failed",
+            message=f"{file_name} failed during processing; changes were rolled back.",
+            priority="high",
+            resource_type="Import",
+            resource_id=import_record.id,
+            details={"importType": import_type_key, "filename": file_name, "totalRecords": validation["total_records"]},
+        )
         db.commit()
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Import failed and was rolled back") from exc
 

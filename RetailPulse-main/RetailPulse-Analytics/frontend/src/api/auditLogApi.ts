@@ -44,6 +44,12 @@ export interface AuditUserOption {
 	email: string;
 }
 
+export interface AuditLogFilterOptions {
+	actions: string[];
+	resourceTypes: string[];
+	statuses: string[];
+}
+
 function params(filters: AuditLogFilters) {
 	return {
 		page: filters.page,
@@ -66,6 +72,11 @@ export async function listAuditLogs(filters: AuditLogFilters = {}) {
 
 export async function listAuditUsers() {
 	const response = await apiClient.get<AuditUserOption[]>("/users");
+	return response.data;
+}
+
+export async function getAuditLogFilterOptions() {
+	const response = await apiClient.get<AuditLogFilterOptions>("/audit-logs/filters");
 	return response.data;
 }
 

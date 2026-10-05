@@ -72,9 +72,11 @@ def register_company(db: Session, payload: CompanyRegistration, request: Request
         user_id=admin_user.id,
         performed_by=admin_user.name,
         entity_type="Company",
+        resource_id=company.id,
         entity_name=company.name,
         action=AuditAction.COMPANY_REGISTERED,
         request=request,
+        description=f"Company {company.name} registered with its initial admin",
     )
     db.commit()
     return _build_auth_response(db, admin_user)
@@ -94,9 +96,11 @@ def login_user(db: Session, payload: LoginRequest, request: Request) -> AuthResp
         user_id=user.id,
         performed_by=user.name,
         entity_type="User",
+        resource_id=user.id,
         entity_name=user.name,
         action=AuditAction.USER_LOGIN,
         request=request,
+        description=f"{user.name} logged in",
     )
     db.commit()
     return _build_auth_response(db, user)
@@ -132,9 +136,11 @@ def logout_user(db: Session, user: User, refresh_token: str, request: Request) -
         user_id=user.id,
         performed_by=user.name,
         entity_type="User",
+        resource_id=user.id,
         entity_name=user.name,
         action=AuditAction.USER_LOGOUT,
         request=request,
+        description=f"{user.name} logged out",
     )
     db.commit()
 
@@ -152,8 +158,10 @@ def change_password(db: Session, user: User, current_password: str, new_password
         user_id=user.id,
         performed_by=user.name,
         entity_type="User",
+        resource_id=user.id,
         entity_name=user.name,
         action=AuditAction.PASSWORD_CHANGED,
         request=request,
+        description=f"{user.name} changed their password",
     )
     db.commit()

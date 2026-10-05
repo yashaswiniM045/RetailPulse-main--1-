@@ -8,7 +8,6 @@ import GroupsRoundedIcon from "@mui/icons-material/GroupsRounded";
 import Inventory2RoundedIcon from "@mui/icons-material/Inventory2Rounded";
 import LogoutIcon from "@mui/icons-material/Logout";
 import MenuIcon from "@mui/icons-material/Menu";
-import NotificationsNoneRoundedIcon from "@mui/icons-material/NotificationsNoneRounded";
 import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
 import PointOfSaleRoundedIcon from "@mui/icons-material/PointOfSaleRounded";
 import PublishRoundedIcon from "@mui/icons-material/PublishRounded";
@@ -18,6 +17,7 @@ import { ReactNode, useState } from "react";
 import { motion } from "framer-motion";
 import { Link as RouterLink, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import NotificationCenter from "../components/NotificationCenter";
 
 export default function DashboardLayout() {
 	const [open, setOpen] = useState(false);
@@ -64,7 +64,7 @@ export default function DashboardLayout() {
 				<Toolbar sx={{ minHeight: 76 }}>
 					{mobile && <IconButton onClick={() => setOpen(true)} sx={{ mr: 1 }}><MenuIcon /></IconButton>}
 					<Box sx={{ flexGrow: 1 }}><Typography variant="h6" fontWeight={800}>{navigationItems.find((item) => location.pathname === item.to)?.label ?? "Overview"}</Typography><Typography variant="caption" color="text.secondary">Good to see you, {user?.name?.split(" ")[0] ?? "there"}</Typography></Box>
-					<Stack direction="row" spacing={1.5} alignItems="center"><IconButton aria-label="Notifications" sx={{ color: "text.secondary", bgcolor: "rgba(99,102,241,.06)" }}><NotificationsNoneRoundedIcon /></IconButton><Divider orientation="vertical" flexItem sx={{ my: 1.5 }} /><Avatar sx={{ width: 36, height: 36, bgcolor: "primary.main", fontWeight: 800 }}>{user?.name?.charAt(0) ?? "U"}</Avatar><Box sx={{ display: { xs: "none", sm: "block" } }}><Typography variant="body2" fontWeight={750}>{user?.name}</Typography><Typography variant="caption" color="text.secondary">{user?.company.name}</Typography></Box><Button aria-label="Log out" onClick={() => void logoutUser()} color="inherit" sx={{ minWidth: 0, px: 1 }}><LogoutIcon fontSize="small" /></Button></Stack>
+					<Stack direction="row" spacing={1.5} alignItems="center"><NotificationCenter /><Divider orientation="vertical" flexItem sx={{ my: 1.5 }} /><Avatar sx={{ width: 36, height: 36, bgcolor: "primary.main", fontWeight: 800 }}>{user?.name?.charAt(0) ?? "U"}</Avatar><Box sx={{ display: { xs: "none", sm: "block" } }}><Typography variant="body2" fontWeight={750}>{user?.name}</Typography><Typography variant="caption" color="text.secondary">{user?.company.name}</Typography></Box><Button aria-label="Log out" onClick={() => void logoutUser()} color="inherit" sx={{ minWidth: 0, px: 1 }}><LogoutIcon fontSize="small" /></Button></Stack>
 				</Toolbar>
 			</AppBar>
 			<Box component={motion.div} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.28, ease: "easeOut" }} sx={{ maxWidth: 1480, mx: "auto", px: { xs: 2, md: 4 }, py: { xs: 3, md: 4 } }}>

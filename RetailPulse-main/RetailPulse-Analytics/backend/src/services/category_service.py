@@ -85,9 +85,11 @@ def create_category(db: Session, current_user: User, payload: CategoryUpsert, re
         user_id=current_user.id,
         performed_by=current_user.name,
         entity_type="Category",
+        resource_id=category.id,
         entity_name=category.name,
         action=AuditAction.CATEGORY_CREATED,
         request=request,
+        description=f"Category {category.name} created",
     )
     db.commit()
     return _category_payload(category, 0)
@@ -99,6 +101,7 @@ def update_category(db: Session, current_user: User, category_id: int, payload: 
     if _category_name_exists(db, current_user.company_id, name, exclude_id=category.id):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Category name already exists")
 
+    before_values = {"name": category.name, "description": category.description, "status": category.status.value}
     category.name = name
     category.description = payload.description.strip() or None
     category.status = CategoryStatus(payload.status)
@@ -108,9 +111,13 @@ def update_category(db: Session, current_user: User, category_id: int, payload: 
         user_id=current_user.id,
         performed_by=current_user.name,
         entity_type="Category",
+        resource_id=category.id,
         entity_name=category.name,
         action=AuditAction.CATEGORY_UPDATED,
         request=request,
+        description=f"Category {category.name} updated",
+        before_values=before_values,
+        after_values={"name": category.name, "description": category.description, "status": category.status.value},
     )
     db.commit()
     db.refresh(category)
@@ -130,9 +137,12 @@ def delete_category(db: Session, current_user: User, category_id: int, request: 
         user_id=current_user.id,
         performed_by=current_user.name,
         entity_type="Category",
+        resource_id=category.id,
         entity_name=category.name,
         action=AuditAction.CATEGORY_DELETED,
         request=request,
+        description=f"Category {category.name} deleted",
+        before_values={"name": category.name, "status": category.status.value},
     )
     db.delete(category)
     db.commit()

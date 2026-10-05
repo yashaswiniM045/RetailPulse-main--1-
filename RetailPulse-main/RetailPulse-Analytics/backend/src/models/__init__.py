@@ -22,6 +22,7 @@ from .forecast import (
 	InventoryRecommendationType,
 )
 from .import_history import ImportErrorRecord, ImportHistory
+from .notification import Notification
 from .refresh_token import RefreshToken
 from .product import Product, ProductStatus
 from .sale import PaymentMethod, PaymentStatus, Sale, SaleItem, SalesChannel
@@ -49,6 +50,7 @@ __all__ = [
 	"ForecastPeriod",
 	"ImportErrorRecord",
 	"ImportHistory",
+	"Notification",
 	"InventoryRecommendationType",
 	"PaymentMethod",
 	"PaymentStatus",

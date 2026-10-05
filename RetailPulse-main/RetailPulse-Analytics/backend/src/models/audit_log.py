@@ -1,4 +1,4 @@
-from sqlalchemy import ForeignKey, JSON, String, Text
+from sqlalchemy import ForeignKey, Index, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base, TimestampMixin
@@ -6,6 +6,12 @@ from .base import Base, TimestampMixin
 
 class AuditLog(Base, TimestampMixin):
     __tablename__ = "audit_logs"
+    __table_args__ = (
+        Index("ix_audit_logs_company_created_at", "company_id", "created_at"),
+        Index("ix_audit_logs_company_action", "company_id", "action"),
+        Index("ix_audit_logs_company_resource", "company_id", "entity_type"),
+        Index("ix_audit_logs_company_status", "company_id", "status"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"), nullable=False, index=True)

@@ -4,7 +4,7 @@ import json
 from datetime import datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
@@ -12,7 +12,7 @@ from src.dependencies.auth import require_roles
 from src.dependencies.database import get_db
 from src.models.user import User, UserRole
 from src.schemas.audit_log import AuditLogPage, AuditLogRead
-from src.services.audit_log_service import get_audit_log, list_audit_logs
+from src.services.audit_log_service import get_audit_filter_options, get_audit_log, list_audit_logs
 from src.services.audit_service import AuditAction, create_audit_log
 
 router = APIRouter(prefix="/audit-logs", tags=["audit-logs"])
@@ -29,6 +29,8 @@ def _filters(
     search: str | None,
     sort_order: str,
 ) -> dict[str, Any]:
+    if start_date and end_date and start_date > end_date:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="start_date must be before end_date")
     return {
         "user_id": user_id,
         "action": action,
@@ -45,6 +47,7 @@ def _filters(
 def list_audit_logs_route(
     page: int = Query(1, ge=1),
     page_size: int = Query(25, ge=1, le=100),
+    limit: int | None = Query(None, ge=1, le=100),
     user_id: int | None = None,
     action: str | None = None,
     resource_type: str | None = None,
@@ -56,7 +59,7 @@ def list_audit_logs_route(
     current_user: User = Depends(require_roles(*ADMIN_ROLES)),
     db: Session = Depends(get_db),
 ):
-    return list_audit_logs(db, current_user.company_id, page=page, page_size=page_size, **_filters(user_id, action, resource_type, status_filter, start_date, end_date, search, sort_order))
+    return list_audit_logs(db, current_user.company_id, page=page, page_size=limit or page_size, **_filters(user_id, action, resource_type, status_filter, start_date, end_date, search, sort_order))
 
 
 def _export_rows(db: Session, current_user: User, **filters: Any) -> list[dict[str, Any]]:
@@ -65,6 +68,14 @@ def _export_rows(db: Session, current_user: User, **filters: Any) -> list[dict[s
     for page in range(2, first_page["totalPages"] + 1):
         rows.extend(list_audit_logs(db, current_user.company_id, page=page, page_size=100, **filters)["items"])
     return rows
+
+
+@router.get("/filters")
+def audit_filter_options_route(
+    current_user: User = Depends(require_roles(*ADMIN_ROLES)),
+    db: Session = Depends(get_db),
+):
+    return get_audit_filter_options(db, current_user.company_id)
 
 
 @router.get("/export.csv")
@@ -118,10 +129,34 @@ def export_audit_logs_pdf_route(
 
 
 def _minimal_pdf(content: str) -> bytes:
-    text = content.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
-    stream = f"BT /F1 8 Tf 40 760 Td 10 TL ({text[:5000]}) Tj ET".encode("latin-1", "replace")
-    objects = [b"<< /Type /Catalog /Pages 2 0 R >>", b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>", b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>", b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>", b"<< /Length " + str(len(stream)).encode() + b" >>\nstream\n" + stream + b"\nendstream"]
-    output = io.BytesIO(b"%PDF-1.4\n")
+    import textwrap
+
+    lines = [wrapped for line in content.splitlines() for wrapped in textwrap.wrap(line, width=110) or [""]]
+    page_lines = [lines[index:index + 55] for index in range(0, len(lines), 55)] or [[]]
+    page_count = len(page_lines)
+    font_id = 3 + 2 * page_count
+    objects = [b"<< /Type /Catalog /Pages 2 0 R >>", b""]
+    page_ids = []
+    for index, lines_for_page in enumerate(page_lines):
+        page_id = 3 + 2 * index
+        content_id = page_id + 1
+        page_ids.append(f"{page_id} 0 R")
+        commands = ["BT /F1 8 Tf 40 760 Td 10 TL"]
+        for line_index, line in enumerate(lines_for_page):
+            escaped = line.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+            if line_index:
+                commands.append("T*")
+            commands.append(f"({escaped}) Tj")
+        commands.append("ET")
+        stream = " ".join(commands).encode("latin-1", "replace")
+        objects.extend([
+            f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 {font_id} 0 R >> >> /Contents {content_id} 0 R >>".encode(),
+            b"<< /Length " + str(len(stream)).encode() + b" >>\nstream\n" + stream + b"\nendstream",
+        ])
+    objects[1] = f"<< /Type /Pages /Kids [{' '.join(page_ids)}] /Count {page_count} >>".encode()
+    objects.append(b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>")
+    output = io.BytesIO()
+    output.write(b"%PDF-1.4\n")
     offsets = [0]
     for index, obj in enumerate(objects, 1):
         offsets.append(output.tell())
