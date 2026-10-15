@@ -4,6 +4,7 @@ import CategoryRoundedIcon from "@mui/icons-material/CategoryRounded";
 import ChevronLeftRoundedIcon from "@mui/icons-material/ChevronLeftRounded";
 import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
 import DashboardRoundedIcon from "@mui/icons-material/DashboardRounded";
+import DescriptionRoundedIcon from "@mui/icons-material/DescriptionRounded";
 import GroupsRoundedIcon from "@mui/icons-material/GroupsRounded";
 import Inventory2RoundedIcon from "@mui/icons-material/Inventory2Rounded";
 import LogoutIcon from "@mui/icons-material/Logout";
@@ -35,6 +36,7 @@ export default function DashboardLayout() {
 		...(canUseSales ? [{ label: "Customers", to: "/customers", icon: <GroupsRoundedIcon /> }] : []),
 		...(canUseSales ? [{ label: "Inventory", to: "/inventory", icon: <Inventory2RoundedIcon /> }] : []),
 		...(canUseSales ? [{ label: "Sales", to: "/sales", icon: <PointOfSaleRoundedIcon /> }] : []),
+		...(canUseSales ? [{ label: "Reports", to: "/reports", icon: <DescriptionRoundedIcon /> }] : []),
 		...(isAdmin ? [{ label: "Categories", to: "/categories", icon: <CategoryRoundedIcon /> }, { label: "Products", to: "/products", icon: <AssessmentRoundedIcon /> }, { label: "Data Import", to: "/data-import", icon: <PublishRoundedIcon /> }, { label: "Audit Logs", to: "/audit-logs", icon: <HistoryRoundedIcon /> }] : []),
 	];
 	const sidebar = (

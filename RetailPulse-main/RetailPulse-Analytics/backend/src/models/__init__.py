@@ -24,6 +24,7 @@ from .forecast import (
 from .import_history import ImportErrorRecord, ImportHistory
 from .notification import Notification
 from .refresh_token import RefreshToken
+from .reporting import ReportHistory, ScheduledReport
 from .product import Product, ProductStatus
 from .sale import PaymentMethod, PaymentStatus, Sale, SaleItem, SalesChannel
 from .user import User
@@ -57,6 +58,8 @@ __all__ = [
 	"Product",
 	"ProductStatus",
 	"RefreshToken",
+	"ReportHistory",
+	"ScheduledReport",
 	"Sale",
 	"SaleItem",
 	"SalesChannel",

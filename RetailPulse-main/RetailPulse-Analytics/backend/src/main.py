@@ -1,4 +1,6 @@
 from contextlib import asynccontextmanager
+import asyncio
+import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -7,7 +9,7 @@ from sqlalchemy import text
 from src.config.database import engine
 from src.config.env import get_settings
 from src.models.base import Base
-from src.models import audit_log, category, company, customer, forecast, inventory, notification, product, refresh_token, sale, user
+from src.models import audit_log, category, company, customer, forecast, inventory, notification, product, refresh_token, reporting, sale, user
 from src.routes.categories import router as categories_router
 from src.routes.customers import router as customers_router
 from src.routes.dashboard import router as dashboard_router
@@ -21,42 +23,64 @@ from src.routes.inventory import router as inventory_router
 from src.routes.products import router as products_router
 from src.routes.sales import router as sales_router
 from src.routes.users import router as user_router
+from src.routes.reports import router as reports_router
+from src.config.database import SessionLocal
+from src.services.reporting_service import run_due_schedules
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     Base.metadata.create_all(bind=engine)
-    with engine.begin() as connection:
-        connection.execute(text("ALTER TABLE IF EXISTS audit_logs ADD COLUMN IF NOT EXISTS performed_by VARCHAR(255)"))
-        connection.execute(text("ALTER TABLE IF EXISTS audit_logs ADD COLUMN IF NOT EXISTS entity_type VARCHAR(50)"))
-        connection.execute(text("ALTER TABLE IF EXISTS audit_logs ADD COLUMN IF NOT EXISTS resource_id VARCHAR(100)"))
-        connection.execute(text("ALTER TABLE IF EXISTS audit_logs ADD COLUMN IF NOT EXISTS entity_name VARCHAR(255)"))
-        connection.execute(text("ALTER TABLE IF EXISTS audit_logs ADD COLUMN IF NOT EXISTS description TEXT"))
-        connection.execute(text("ALTER TABLE IF EXISTS audit_logs ADD COLUMN IF NOT EXISTS export_type VARCHAR(20)"))
-        connection.execute(text("ALTER TABLE IF EXISTS audit_logs ADD COLUMN IF NOT EXISTS status VARCHAR(30) NOT NULL DEFAULT 'success'"))
-        connection.execute(text("ALTER TABLE IF EXISTS audit_logs ADD COLUMN IF NOT EXISTS before_values JSON"))
-        connection.execute(text("ALTER TABLE IF EXISTS audit_logs ADD COLUMN IF NOT EXISTS after_values JSON"))
-        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_audit_logs_company_created_at ON audit_logs (company_id, created_at)"))
-        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_audit_logs_company_action ON audit_logs (company_id, action)"))
-        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_audit_logs_company_resource ON audit_logs (company_id, entity_type)"))
-        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_audit_logs_company_status ON audit_logs (company_id, status)"))
-        connection.execute(
-            text("ALTER TABLE IF EXISTS products ADD COLUMN IF NOT EXISTS is_out_of_stock BOOLEAN NOT NULL DEFAULT FALSE")
-        )
-        connection.execute(text("ALTER TABLE IF EXISTS sales ADD COLUMN IF NOT EXISTS customer_id INTEGER"))
-        connection.execute(text("ALTER TABLE IF EXISTS sales ADD COLUMN IF NOT EXISTS payment_status VARCHAR(20) NOT NULL DEFAULT 'paid'"))
-        connection.execute(text("ALTER TABLE IF EXISTS sales ADD COLUMN IF NOT EXISTS discount_total NUMERIC(12,2) NOT NULL DEFAULT 0"))
-        connection.execute(text("ALTER TABLE IF EXISTS sales ADD COLUMN IF NOT EXISTS tax_total NUMERIC(12,2) NOT NULL DEFAULT 0"))
-        connection.execute(text("ALTER TABLE IF EXISTS sales ADD COLUMN IF NOT EXISTS notes VARCHAR(1000)"))
-        connection.execute(text("ALTER TABLE IF EXISTS demand_forecasts ADD COLUMN IF NOT EXISTS growth_rate NUMERIC(7,4) NOT NULL DEFAULT 0"))
-        connection.execute(
-            text(
-                "ALTER TABLE IF EXISTS demand_forecasts ADD COLUMN IF NOT EXISTS recommendation_type VARCHAR(50) NOT NULL DEFAULT 'stock-level-healthy'"
+    if engine.dialect.name == "postgresql":
+        with engine.begin() as connection:
+            connection.execute(text("ALTER TABLE IF EXISTS audit_logs ADD COLUMN IF NOT EXISTS performed_by VARCHAR(255)"))
+            connection.execute(text("ALTER TABLE IF EXISTS audit_logs ADD COLUMN IF NOT EXISTS entity_type VARCHAR(50)"))
+            connection.execute(text("ALTER TABLE IF EXISTS audit_logs ADD COLUMN IF NOT EXISTS resource_id VARCHAR(100)"))
+            connection.execute(text("ALTER TABLE IF EXISTS audit_logs ADD COLUMN IF NOT EXISTS entity_name VARCHAR(255)"))
+            connection.execute(text("ALTER TABLE IF EXISTS audit_logs ADD COLUMN IF NOT EXISTS description TEXT"))
+            connection.execute(text("ALTER TABLE IF EXISTS audit_logs ADD COLUMN IF NOT EXISTS export_type VARCHAR(20)"))
+            connection.execute(text("ALTER TABLE IF EXISTS audit_logs ADD COLUMN IF NOT EXISTS status VARCHAR(30) NOT NULL DEFAULT 'success'"))
+            connection.execute(text("ALTER TABLE IF EXISTS audit_logs ADD COLUMN IF NOT EXISTS before_values JSON"))
+            connection.execute(text("ALTER TABLE IF EXISTS audit_logs ADD COLUMN IF NOT EXISTS after_values JSON"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_audit_logs_company_created_at ON audit_logs (company_id, created_at)"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_audit_logs_company_action ON audit_logs (company_id, action)"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_audit_logs_company_resource ON audit_logs (company_id, entity_type)"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_audit_logs_company_status ON audit_logs (company_id, status)"))
+            connection.execute(
+                text("ALTER TABLE IF EXISTS products ADD COLUMN IF NOT EXISTS is_out_of_stock BOOLEAN NOT NULL DEFAULT FALSE")
             )
-        )
-    yield
+            connection.execute(text("ALTER TABLE IF EXISTS sales ADD COLUMN IF NOT EXISTS customer_id INTEGER"))
+            connection.execute(text("ALTER TABLE IF EXISTS sales ADD COLUMN IF NOT EXISTS payment_status VARCHAR(20) NOT NULL DEFAULT 'paid'"))
+            connection.execute(text("ALTER TABLE IF EXISTS sales ADD COLUMN IF NOT EXISTS discount_total NUMERIC(12,2) NOT NULL DEFAULT 0"))
+            connection.execute(text("ALTER TABLE IF EXISTS sales ADD COLUMN IF NOT EXISTS tax_total NUMERIC(12,2) NOT NULL DEFAULT 0"))
+            connection.execute(text("ALTER TABLE IF EXISTS sales ADD COLUMN IF NOT EXISTS notes VARCHAR(1000)"))
+            connection.execute(text("ALTER TABLE IF EXISTS demand_forecasts ADD COLUMN IF NOT EXISTS growth_rate NUMERIC(7,4) NOT NULL DEFAULT 0"))
+            connection.execute(
+                text(
+                    "ALTER TABLE IF EXISTS demand_forecasts ADD COLUMN IF NOT EXISTS recommendation_type VARCHAR(50) NOT NULL DEFAULT 'stock-level-healthy'"
+                )
+            )
+    async def report_scheduler():
+        while True:
+            await asyncio.sleep(30)
+            try:
+                with SessionLocal() as db:
+                    await asyncio.to_thread(run_due_schedules, db)
+            except Exception:
+                logger.exception("Scheduled report cycle failed")
+
+    scheduler_task = asyncio.create_task(report_scheduler())
+    try:
+        yield
+    finally:
+        scheduler_task.cancel()
+        try:
+            await scheduler_task
+        except asyncio.CancelledError:
+            pass
 
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
@@ -87,3 +111,4 @@ app.include_router(import_router, prefix="/api")
 app.include_router(audit_logs_router, prefix="/api")
 app.include_router(notifications_router, prefix="/api")
 app.include_router(user_router, prefix="/api")
+app.include_router(reports_router, prefix="/api")
