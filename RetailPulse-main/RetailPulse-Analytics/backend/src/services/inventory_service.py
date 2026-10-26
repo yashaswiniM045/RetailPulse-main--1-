@@ -18,6 +18,7 @@ from src.models.user import User
 from src.schemas.inventory import InventoryAdjustmentCreate, InventoryReorderLevelUpdate
 from src.services.audit_service import AuditAction, create_audit_log
 from src.services.notification_service import create_notification, resolve_notification
+from src.services.data_quality_service import run_incremental_checks
 
 
 def _resolve_stock_status(available_stock: int, reorder_level: int) -> StockStatus:
@@ -513,6 +514,7 @@ def adjust_inventory_stock(db: Session, current_user: User, payload: InventoryAd
         message=f"Stock adjusted for '{inventory.product.name}' ({quantity_delta:+d})",
         created_by=current_user.id,
     )
+    run_incremental_checks(db, current_user, product_ids={inventory.product_id}, request=request)
 
     db.commit()
     db.refresh(inventory)

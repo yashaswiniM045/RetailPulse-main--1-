@@ -16,6 +16,7 @@ from src.models.sale import Sale
 from src.services.audit_service import AuditAction, create_audit_log
 from src.services.notification_service import create_notification
 from src.services.inventory_service import evaluate_inventory_alerts
+from src.services.data_quality_service import run_incremental_checks
 from src.models.user import User
 
 REQUIRED_COLUMNS = {
@@ -426,6 +427,8 @@ def process_import_rows(db: Session, current_user: User, import_type: str, rows:
         db.commit()
         inserted = 0
         imported_products: list[Product] = []
+        imported_customers: list[Customer] = []
+        imported_sales: list[Sale] = []
         for row in validation["valid_rows"]:
             row_map = _normalize_field_lookup(row)
             if import_type_key == "products":
@@ -454,8 +457,7 @@ def process_import_rows(db: Session, current_user: User, import_type: str, rows:
                 full_name = _get_column_value(row_map, "Name", "name", "customer name")
                 email = _get_column_value(row_map, "Email", "email")
                 phone = _get_column_value(row_map, "Phone", "phone")
-                db.add(
-                    Customer(
+                imported_customer = Customer(
                         company_id=current_user.company_id,
                         customer_code=f"CUST-{len(rows)}-{inserted + 1}",
                         full_name=full_name,
@@ -463,7 +465,8 @@ def process_import_rows(db: Session, current_user: User, import_type: str, rows:
                         phone_number=phone,
                         customer_type="retail",
                     )
-                )
+                db.add(imported_customer)
+                imported_customers.append(imported_customer)
             elif import_type_key == "sales":
                 customer_name = _get_column_value(row_map, "Customer", "customer", "customer name")
                 product_name = _get_column_value(row_map, "Product", "product")
@@ -475,8 +478,7 @@ def process_import_rows(db: Session, current_user: User, import_type: str, rows:
                 if customer is None or product is None:
                     raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Customer or product does not exist")
                 invoice_number = _get_column_value(row_map, "Invoice Number", "invoice number", "invoice") or f"INV-{current_user.company_id}-{inserted + 1}"
-                db.add(
-                    Sale(
+                imported_sale = Sale(
                         company_id=current_user.company_id,
                         customer_id=customer.id,
                         customer_name=customer.full_name,
@@ -488,7 +490,8 @@ def process_import_rows(db: Session, current_user: User, import_type: str, rows:
                         total_amount=quantity * unit_price,
                         created_by=current_user.id,
                     )
-                )
+                db.add(imported_sale)
+                imported_sales.append(imported_sale)
             inserted += 1
         db.flush()
         for imported_product in imported_products:
@@ -525,6 +528,15 @@ def process_import_rows(db: Session, current_user: User, import_type: str, rows:
             resource_type="Import",
             resource_id=import_record.id,
             details={"importType": import_type_key, "filename": file_name, "totalRecords": validation["total_records"], "successfulRecords": inserted, "failedRecords": validation["invalid_count"]},
+        )
+        db.commit()
+        run_incremental_checks(
+            db,
+            current_user,
+            sale_ids={sale.id for sale in imported_sales},
+            product_ids={product.id for product in imported_products},
+            customer_ids={customer.id for customer in imported_customers},
+            request=request,
         )
         db.commit()
         return {

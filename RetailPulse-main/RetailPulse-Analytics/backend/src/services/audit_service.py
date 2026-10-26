@@ -44,6 +44,8 @@ class AuditAction:
     FORECAST_REFRESHED = "Forecast Refreshed"
     INVENTORY_RECOMMENDATION_GENERATED = "Inventory Recommendation Generated"
     AUDIT_LOGS_EXPORTED = "Audit Logs Exported"
+    DATA_QUALITY_RECONCILIATION_COMPLETED = "Data Quality Reconciliation Completed"
+    DATA_QUALITY_ISSUE_STATUS_CHANGED = "Data Quality Issue Status Changed"
     IMPORT_COMPLETED = "Import"
 
 

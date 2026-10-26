@@ -19,6 +19,7 @@ from src.services.notification_service import create_notification
 from src.services.customer_service import sync_customer_purchase_summary
 from src.services.forecast_service import refresh_forecasts_for_company
 from src.services.inventory_service import apply_sale_stock_change
+from src.services.data_quality_service import run_incremental_checks
 
 
 def _sale_base_query(company_id: int):
@@ -382,6 +383,8 @@ def create_sale(db: Session, current_user: User, payload: SaleUpsert, request: R
             request=request,
         )
 
+    run_incremental_checks(db, current_user, sale_ids={sale.id}, request=request)
+
     db.commit()
     refresh_forecasts_for_company(
         db,
@@ -481,6 +484,7 @@ def update_sale(db: Session, current_user: User, sale_id: int, payload: SaleUpse
             actor=current_user,
             request=request,
         )
+    run_incremental_checks(db, current_user, sale_ids={sale.id}, request=request)
 
     db.commit()
     refresh_forecasts_for_company(

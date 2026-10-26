@@ -13,6 +13,7 @@ from .customer import (
 	CustomerTimelineType,
 	CustomerType,
 )
+from .data_quality import DataQualityIssue, DataQualityIssueEvent, ReconciliationRun
 from .forecast import (
 	DemandForecast,
 	ForecastHistory,
@@ -44,6 +45,8 @@ __all__ = [
 	"CustomerTimeline",
 	"CustomerTimelineType",
 	"CustomerType",
+	"DataQualityIssue",
+	"DataQualityIssueEvent",
 	"DemandForecast",
 	"ForecastHistory",
 	"ForecastNotification",
@@ -58,6 +61,7 @@ __all__ = [
 	"Product",
 	"ProductStatus",
 	"RefreshToken",
+	"ReconciliationRun",
 	"ReportHistory",
 	"ScheduledReport",
 	"Sale",

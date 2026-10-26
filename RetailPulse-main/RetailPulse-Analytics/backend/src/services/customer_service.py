@@ -25,6 +25,7 @@ from src.models.sale import Sale, SaleItem
 from src.models.user import User
 from src.schemas.customer import CustomerSortBy, CustomerSortDirection, CustomerUpsert
 from src.services.audit_service import AuditAction, create_audit_log
+from src.services.data_quality_service import run_incremental_checks
 
 
 def _to_int(value: object) -> int:
@@ -360,6 +361,7 @@ def create_customer(db: Session, current_user: User, payload: CustomerUpsert, re
         description=f"Customer {customer.full_name} created",
     )
 
+    run_incremental_checks(db, current_user, customer_ids={customer.id}, request=request)
     db.commit()
     db.refresh(customer)
     return _customer_payload(customer)
@@ -449,6 +451,7 @@ def update_customer(db: Session, current_user: User, customer_id: int, payload: 
         after_values={"name": customer.full_name, "email": customer.email, "phone": customer.phone_number, "status": customer.status.value},
     )
 
+    run_incremental_checks(db, current_user, customer_ids={customer.id}, request=request)
     db.commit()
     db.refresh(customer)
     return _customer_payload(customer)
@@ -485,6 +488,7 @@ def delete_customer(db: Session, current_user: User, customer_id: int, request: 
         description="Customer has been soft deleted",
         user_id=current_user.id,
     )
+    run_incremental_checks(db, current_user, customer_ids={customer.id}, request=request)
     db.commit()
 
 
@@ -527,6 +531,7 @@ def update_customer_status(
         after_values={"status": status_value.value},
     )
 
+    run_incremental_checks(db, current_user, customer_ids={customer.id}, request=request)
     db.commit()
     db.refresh(customer)
     return _customer_payload(customer)

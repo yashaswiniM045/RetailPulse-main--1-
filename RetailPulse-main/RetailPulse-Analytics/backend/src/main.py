@@ -9,7 +9,7 @@ from sqlalchemy import text
 from src.config.database import engine
 from src.config.env import get_settings
 from src.models.base import Base
-from src.models import audit_log, category, company, customer, forecast, inventory, notification, product, refresh_token, reporting, sale, user
+from src.models import audit_log, category, company, customer, data_quality, forecast, inventory, notification, product, refresh_token, reporting, sale, user
 from src.routes.categories import router as categories_router
 from src.routes.customers import router as customers_router
 from src.routes.dashboard import router as dashboard_router
@@ -24,6 +24,7 @@ from src.routes.products import router as products_router
 from src.routes.sales import router as sales_router
 from src.routes.users import router as user_router
 from src.routes.reports import router as reports_router
+from src.routes.data_quality import router as data_quality_router
 from src.config.database import SessionLocal
 from src.services.reporting_service import run_due_schedules
 
@@ -112,3 +113,4 @@ app.include_router(audit_logs_router, prefix="/api")
 app.include_router(notifications_router, prefix="/api")
 app.include_router(user_router, prefix="/api")
 app.include_router(reports_router, prefix="/api")
+app.include_router(data_quality_router, prefix="/api")
