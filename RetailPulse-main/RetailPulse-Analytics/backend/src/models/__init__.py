@@ -22,7 +22,7 @@ from .forecast import (
 	ForecastPeriod,
 	InventoryRecommendationType,
 )
-from .import_history import ImportErrorRecord, ImportHistory
+from .import_history import ImportErrorRecord, ImportHistory, ImportJob
 from .notification import Notification
 from .refresh_token import RefreshToken
 from .reporting import ReportHistory, ScheduledReport
@@ -54,6 +54,7 @@ __all__ = [
 	"ForecastPeriod",
 	"ImportErrorRecord",
 	"ImportHistory",
+	"ImportJob",
 	"Notification",
 	"InventoryRecommendationType",
 	"PaymentMethod",

@@ -40,7 +40,7 @@ class ImportValidationSummary(BaseModel):
 
 
 class ImportHistoryRecord(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
     id: int
     importType: str = Field(alias="import_type")
@@ -50,6 +50,8 @@ class ImportHistoryRecord(BaseModel):
     successfulRecords: int = Field(alias="successful_records")
     failedRecords: int = Field(alias="failed_records")
     duplicateRecords: int = Field(alias="duplicate_records")
+    skippedRecords: int = 0
+    durationSeconds: int | None = None
     status: str
     createdAt: datetime = Field(alias="created_at")
     completedAt: datetime | None = Field(alias="completed_at")
@@ -75,7 +77,13 @@ class ImportDetailResponse(BaseModel):
     successfulRecords: int
     failedRecords: int
     duplicateRecords: int
+    skippedRecords: int = 0
+    processedRecords: int = 0
+    progressPercent: int = 0
     status: str
     createdAt: datetime
+    startedAt: datetime | None = None
     completedAt: datetime | None
+    durationSeconds: int | None = None
+    validationSummary: ImportValidationSummary | None = None
     errors: list[dict[str, object]] = Field(default_factory=list)

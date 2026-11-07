@@ -46,7 +46,11 @@ class AuditAction:
     AUDIT_LOGS_EXPORTED = "Audit Logs Exported"
     DATA_QUALITY_RECONCILIATION_COMPLETED = "Data Quality Reconciliation Completed"
     DATA_QUALITY_ISSUE_STATUS_CHANGED = "Data Quality Issue Status Changed"
-    IMPORT_COMPLETED = "Import"
+    IMPORT_COMPLETED = "Import Completed"
+    IMPORT_FILE_UPLOADED = "Import File Uploaded"
+    IMPORT_STARTED = "Import Started"
+    IMPORT_FAILED = "Import Failed"
+    IMPORT_CANCELLED = "Import Cancelled"
 
 
 def create_audit_log(

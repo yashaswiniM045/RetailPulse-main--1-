@@ -56,3 +56,22 @@ All Data Quality APIs require an authenticated Company Admin, Super Admin, or An
 Checks cover sale quantities and matching stock movements, inventory/product quantities and movement chains, sale product/customer references, inactive references, duplicate/required product data, required customer data, and sale totals versus line-item totals. Findings are stored by a company-scoped fingerprint; repeated checks update the existing issue. A finding is auto-resolved only after its check succeeds and no longer detects it. Failed checks do not resolve their previous findings. Existing sales, inventory, products, customers, movements, and report history remain the source data.
 
 Incremental checks run after sale create/update, product create/update/status change, customer create/update/status change/soft delete, manual stock adjustments, and successful product/customer/sales imports. These checks are limited to affected record IDs; they do not launch a full-company scan.
+
+## Data Imports
+
+Import endpoints require an authenticated Company Admin or Super Admin. Every import and its uploaded row data are scoped to the authenticated user's company; uploaded row data is removed when processing completes, fails, or is cancelled. CSV uploads are limited to 5 MB.
+
+- `GET /api/imports/templates/{type}` downloads the CSV template for `products`, `inventory`, `customers`, or `sales`.
+- `POST /api/imports/upload` accepts multipart fields `import_type` and `file`. It parses and validates the CSV, creates an `Uploaded` import-history record, and returns the preview, row counts, missing columns, and validation issues. Product SKUs, customer email/phone, and sale invoice references that already exist are rejected. Inventory rows are keyed by SKU and update the matching product's stock.
+- `POST /api/imports/validate` accepts `{ "importType": "products", "rows": [...] }` for validating up to 10,000 rows without creating an import.
+- `POST /api/imports/{id}/start` starts an uploaded job and returns its current summary. A background worker validates and processes records in batches; poll the status endpoint rather than waiting for the full import.
+- `GET /api/imports/{id}/status` returns status, processed/total counts, percent complete, successes, failures, duplicates, skipped rows, and duration.
+- `GET /api/imports/{id}` returns the same summary and row-level errors, including original row values.
+- `GET /api/imports/{id}/errors` returns failed row details as JSON.
+- `GET /api/imports/{id}/errors.csv` downloads the failed rows and validation/processing reasons.
+- `GET /api/imports/history` lists imports for the current company.
+- `POST /api/imports/{id}/cancel` cancels an uploaded or active import. Already committed rows remain recorded as successful; unprocessed rows are not processed.
+
+Statuses are `Uploaded`, `Validating`, `Processing`, `Completed`, `Completed with Errors`, `Failed`, and `Cancelled`. Import start/completion/failure notifications use import-specific event keys to avoid duplicate event notifications. Upload, start, completion, failure, and cancellation are written to Audit Logs. Successful product, inventory, customer, and sales changes trigger targeted Data Quality checks.
+
+The API process runs one import worker that resumes persisted `Validating`/`Processing` jobs after restart. Deploy one worker-enabled API process per database unless a distributed job-claim mechanism is configured; multiple independent worker processes are not currently supported.

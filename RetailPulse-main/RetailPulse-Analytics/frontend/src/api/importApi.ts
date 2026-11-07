@@ -1,6 +1,6 @@
 import { apiClient } from "./axios";
 
-export type ImportType = "products" | "customers" | "sales";
+export type ImportType = "products" | "inventory" | "customers" | "sales";
 
 export interface ImportIssue {
 	rowNumber: number | null;
@@ -28,6 +28,8 @@ export interface ImportHistoryItem {
 	successfulRecords: number;
 	failedRecords: number;
 	duplicateRecords: number;
+	skippedRecords?: number;
+	durationSeconds?: number | null;
 	status: string;
 	createdAt: string;
 	completedAt: string | null;
@@ -35,41 +37,49 @@ export interface ImportHistoryItem {
 
 export interface ImportProcessResult {
 	importId: number;
+	importType: string;
+	filename: string;
+	uploadedBy: string;
 	totalRecords: number;
 	successfullyAdded: number;
+	successfulRecords: number;
 	failedRecords: number;
 	duplicateRecords: number;
-	validationFailures: number;
+	skippedRecords: number;
+	processedRecords: number;
+	progressPercent: number;
 	status: string;
-	errors: ImportIssue[];
+	createdAt: string;
+	startedAt: string | null;
+	completedAt: string | null;
+	durationSeconds: number | null;
+}
+
+export interface ImportUploadResult {
+	importId: number;
+	filename: string;
+	importType: ImportType;
+	columns: string[];
+	preview: Record<string, string>[];
+	summary: ImportValidationSummary;
+	status: string;
 }
 
 export async function uploadImportFile(importType: ImportType, file: File) {
 	const formData = new FormData();
 	formData.append("import_type", importType);
 	formData.append("file", file);
-	const response = await apiClient.post<{ filename: string; importType: string; columns: string[]; preview: Record<string, string>[]; summary: ImportValidationSummary }>(
-		"/imports/upload",
-		formData,
-		{ headers: { "Content-Type": "multipart/form-data" } },
-	);
+	const response = await apiClient.post<ImportUploadResult>("/imports/upload", formData);
 	return response.data;
 }
 
-export async function validateImportRows(importType: ImportType, rows: Record<string, string>[]) {
-	const response = await apiClient.post<ImportValidationSummary>("/imports/validate", {
-		importType,
-		rows,
-	});
-	return response.data;
+export async function downloadImportTemplate(importType: ImportType) {
+	const response = await apiClient.get(`/imports/templates/${importType}`, { responseType: "blob" });
+	return response.data as Blob;
 }
 
-export async function processImportRows(importType: ImportType, rows: Record<string, string>[], filename: string) {
-	const response = await apiClient.post<ImportProcessResult>("/imports/process", {
-		importType,
-		rows,
-		filename,
-	});
+export async function startImport(importId: number) {
+	const response = await apiClient.post<ImportProcessResult>(`/imports/${importId}/start`);
 	return response.data;
 }
 
@@ -79,11 +89,24 @@ export async function getImportHistory() {
 }
 
 export async function getImportById(importId: number) {
-	const response = await apiClient.get<ImportHistoryItem & { errors: ImportIssue[] }>(`/imports/${importId}`);
+	const response = await apiClient.get<ImportProcessResult & {
+		errors: ImportIssue[];
+		validationSummary?: ImportValidationSummary | null;
+	}>(`/imports/${importId}`);
 	return response.data;
 }
 
-export async function getImportErrors(importId: number) {
-	const response = await apiClient.get<Array<{ rowNumber: number | null; errorType: string; message: string; rowData: string | null }>>(`/imports/${importId}/errors`);
+export async function getImportStatus(importId: number) {
+	const response = await apiClient.get<ImportProcessResult>(`/imports/${importId}/status`);
 	return response.data;
+}
+
+export async function cancelImport(importId: number) {
+	const response = await apiClient.post<ImportProcessResult>(`/imports/${importId}/cancel`);
+	return response.data;
+}
+
+export async function downloadImportErrorReport(importId: number) {
+	const response = await apiClient.get(`/imports/${importId}/errors.csv`, { responseType: "blob" });
+	return response.data as Blob;
 }

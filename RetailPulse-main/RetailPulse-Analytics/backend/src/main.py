@@ -9,7 +9,7 @@ from sqlalchemy import text
 from src.config.database import engine
 from src.config.env import get_settings
 from src.models.base import Base
-from src.models import audit_log, category, company, customer, data_quality, forecast, inventory, notification, product, refresh_token, reporting, sale, user
+from src.models import audit_log, category, company, customer, data_quality, forecast, import_history, inventory, notification, product, refresh_token, reporting, sale, user
 from src.routes.categories import router as categories_router
 from src.routes.customers import router as customers_router
 from src.routes.dashboard import router as dashboard_router
@@ -27,6 +27,7 @@ from src.routes.reports import router as reports_router
 from src.routes.data_quality import router as data_quality_router
 from src.config.database import SessionLocal
 from src.services.reporting_service import run_due_schedules
+from src.services.import_service import process_next_import_job
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
@@ -73,15 +74,22 @@ async def lifespan(_: FastAPI):
             except Exception:
                 logger.exception("Scheduled report cycle failed")
 
+    async def import_worker():
+        while True:
+            await asyncio.sleep(1)
+            try:
+                await asyncio.to_thread(process_next_import_job)
+            except Exception:
+                logger.exception("Import worker cycle failed")
+
     scheduler_task = asyncio.create_task(report_scheduler())
+    import_task = asyncio.create_task(import_worker())
     try:
         yield
     finally:
         scheduler_task.cancel()
-        try:
-            await scheduler_task
-        except asyncio.CancelledError:
-            pass
+        import_task.cancel()
+        await asyncio.gather(scheduler_task, import_task, return_exceptions=True)
 
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)

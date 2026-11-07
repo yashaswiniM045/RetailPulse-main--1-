@@ -98,6 +98,28 @@ History retains execution metadata and applied filters only. Table rows are rege
 - `changed_by_id`, `changed_by_name`
 - `previous_status`, `new_status`, `note`, `created_at`
 
+### import_history
+
+- `id`, `company_id`, `import_type`, `filename`
+- `uploaded_by`, `uploaded_by_id`
+- `total_records`, `successful_records`, `failed_records`, `duplicate_records`
+- `status`, `created_at`, `completed_at`
+
+### import_jobs
+
+- `import_id` foreign key to `import_history.id`
+- `source_data` (temporary JSON-encoded CSV rows, cleared on terminal status)
+- `processed_ids` (successful source entity IDs retained for resumable data-quality checks)
+- `processed_records`, `skipped_records`
+- `started_at`, `duration_seconds`
+
+### import_error_records
+
+- `id`, `import_id` foreign key to `import_history.id`
+- `row_number`, `error_type`, `message`, `row_data`
+
+Import history and error rows are scoped through the owning company's import record. The persisted job payload enables the single in-process background worker to resume after an application restart; completed job payloads are cleared while row-level error data remains available for review and error-report downloads.
+
 The issue tables contain reconciliation metadata and issue context only; they do not copy source business rows. The application initializes schema with SQLAlchemy `create_all`, consistent with the existing repository. Every issue and event is company-scoped and filtered by the authenticated user's company.
 
 ## Isolation

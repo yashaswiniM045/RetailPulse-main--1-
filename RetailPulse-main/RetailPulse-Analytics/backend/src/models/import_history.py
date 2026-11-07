@@ -9,16 +9,20 @@ from .base import Base
 
 class ImportType(str, enum.Enum):
     PRODUCTS = "products"
+    INVENTORY = "inventory"
     CUSTOMERS = "customers"
     SALES = "sales"
 
 
 class ImportStatus(str, enum.Enum):
+    UPLOADED = "Uploaded"
+    VALIDATING = "Validating"
     PENDING = "Pending"
     PROCESSING = "Processing"
     COMPLETED = "Completed"
     COMPLETED_WITH_ERRORS = "Completed with Errors"
     FAILED = "Failed"
+    CANCELLED = "Cancelled"
 
 
 class ImportHistory(Base):
@@ -41,6 +45,21 @@ class ImportHistory(Base):
     company = relationship("Company", back_populates="import_history")
     uploader = relationship("User")
     errors = relationship("ImportErrorRecord", back_populates="import_history", cascade="all, delete-orphan")
+    job = relationship("ImportJob", back_populates="import_history", uselist=False, cascade="all, delete-orphan")
+
+
+class ImportJob(Base):
+    __tablename__ = "import_jobs"
+
+    import_id: Mapped[int] = mapped_column(ForeignKey("import_history.id"), primary_key=True)
+    source_data: Mapped[str] = mapped_column(Text, nullable=False)
+    processed_ids: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    processed_records: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    skipped_records: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    duration_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    import_history = relationship("ImportHistory", back_populates="job")
 
 
 class ImportErrorRecord(Base):

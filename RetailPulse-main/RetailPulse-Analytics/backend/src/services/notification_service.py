@@ -19,6 +19,7 @@ ROLE_MATRIX = {
     "overstock": {UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN, UserRole.ANALYST},
     "import-completed": {UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN},
     "import-failed": {UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN},
+    "import-started": {UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN},
     "sales-alert": {UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN, UserRole.ANALYST},
     "system-alert": {UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN},
 }
