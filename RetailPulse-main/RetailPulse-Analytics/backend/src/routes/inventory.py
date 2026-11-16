@@ -1,11 +1,13 @@
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.dependencies.auth import require_roles
 from src.dependencies.database import get_db
-from src.models.inventory import InventoryMovementType, StockStatus
+from src.models.inventory import Inventory, InventoryMovementType, StockStatus
+from src.models.product import Product
 from src.models.user import User, UserRole
 from src.schemas.inventory import (
     InventoryAdjustmentCreate,
@@ -18,7 +20,6 @@ from src.schemas.inventory import (
 )
 from src.schemas.inventory_forecast import InventoryForecastRead, InventoryForecastRowRead
 from src.services.inventory_service import (
-    adjust_inventory_stock,
     get_inventory_dashboard,
     list_inventory_brands,
     list_inventory,
@@ -27,6 +28,8 @@ from src.services.inventory_service import (
     update_reorder_level,
 )
 from src.services.inventory_forecast_service import get_inventory_forecast, list_inventory_forecasts
+from src.schemas.workflow import ApprovalRequestCreate
+from src.services.workflow_service import create_workflow_request
 
 router = APIRouter(prefix="/inventory", tags=["inventory"])
 
@@ -133,14 +136,50 @@ def list_inventory_movements_route(
     )
 
 
-@router.post("/adjustments", response_model=InventoryRead)
+@router.post("/adjustments", status_code=202)
 def adjust_inventory_route(
     payload: InventoryAdjustmentCreate,
     request: Request,
     current_user: User = Depends(require_roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN)),
     db: Session = Depends(get_db),
 ):
-    return adjust_inventory_stock(db, current_user, payload, request)
+    product = db.scalar(
+        select(Product).where(Product.id == payload.product_id, Product.company_id == current_user.company_id)
+    )
+    if product is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+    inventory = db.scalar(
+        select(Inventory).where(
+            Inventory.product_id == payload.product_id,
+            Inventory.company_id == current_user.company_id,
+        )
+    )
+    current_quantity = inventory.current_stock if inventory else product.stock_quantity
+    available_quantity = inventory.available_stock if inventory else current_quantity
+    target_quantity = current_quantity
+    if payload.adjustment_type == "stock-addition":
+        target_quantity += int(payload.quantity or 0)
+    elif payload.adjustment_type == "stock-removal":
+        quantity = int(payload.quantity or 0)
+        if quantity > available_quantity:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Stock out quantity cannot exceed available stock")
+        target_quantity -= quantity
+    else:
+        target_quantity = int(payload.target_quantity or 0)
+    if target_quantity == current_quantity:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Manual adjustment must change stock quantity")
+    return create_workflow_request(
+        db,
+        current_user,
+        ApprovalRequestCreate(
+            requestType="stock-adjustment",
+            relatedRecordId=payload.product_id,
+            requestedChanges={"targetQuantity": target_quantity},
+            reason=payload.reason,
+            priority="medium",
+        ),
+        request,
+    )
 
 
 @router.patch("/{product_id}/reorder-level", response_model=InventoryRead)

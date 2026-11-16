@@ -1,6 +1,7 @@
 import { Alert, Box, Paper, Stack, Typography } from "@mui/material";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
 	adjustInventoryStock,
 	getInventoryDashboard,
@@ -32,6 +33,7 @@ import MovementHistoryTable from "./components/MovementHistoryTable";
 export default function InventoryPage() {
 	const queryClient = useQueryClient();
 	const { notify } = useNotification();
+	const navigate = useNavigate();
 	const { user } = useAuth();
 	const isAdmin = user?.role === "Company Admin" || user?.role === "Super Admin";
 
@@ -138,14 +140,20 @@ export default function InventoryPage() {
 
 	const adjustMutation = useMutation({
 		mutationFn: (payload: InventoryAdjustmentPayload) => adjustInventoryStock(payload),
-		onSuccess: async () => {
+		onSuccess: async (approval) => {
 			await queryClient.invalidateQueries({ queryKey: ["inventory-overview"] });
 			await queryClient.invalidateQueries({ queryKey: ["inventory-movements"] });
 			await queryClient.invalidateQueries({ queryKey: ["inventory-dashboard"] });
 			await queryClient.invalidateQueries({ queryKey: ["inventory-notifications"] });
 			await queryClient.invalidateQueries({ queryKey: ["dashboard-analytics"] });
-			notify("Stock updated successfully", "success");
+			notify(
+				approval.status === "approved"
+					? `Stock adjustment ${approval.requestId} was automatically approved and applied.`
+					: `Stock adjustment ${approval.requestId} submitted for approval. Stock remains unchanged until approval.`,
+				"success",
+			);
 			closeAdjustDialog();
+			navigate(`/workflows?scope=mine&requestId=${approval.id}`);
 		},
 		onError: (error: any) => notify(error?.response?.data?.detail ?? "Unable to adjust stock", "error"),
 	});

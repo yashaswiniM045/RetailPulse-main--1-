@@ -1,4 +1,5 @@
 import AssessmentRoundedIcon from "@mui/icons-material/AssessmentRounded";
+import ApprovalRoundedIcon from "@mui/icons-material/ApprovalRounded";
 import HistoryRoundedIcon from "@mui/icons-material/HistoryRounded";
 import CategoryRoundedIcon from "@mui/icons-material/CategoryRounded";
 import ChevronLeftRoundedIcon from "@mui/icons-material/ChevronLeftRounded";
@@ -33,6 +34,7 @@ export default function DashboardLayout() {
 	const navigationItems: Array<{ label: string; to: string; icon: ReactNode }> = [
 		{ label: "Dashboard", to: "/dashboard", icon: <DashboardRoundedIcon /> },
 		{ label: "Profile", to: "/profile", icon: <PersonRoundedIcon /> },
+		{ label: "Workflows", to: "/workflows", icon: <ApprovalRoundedIcon /> },
 		...(canUseSales ? [{ label: "Forecasting", to: "/inventory/forecast", icon: <ShowChartRoundedIcon /> }] : []),
 		...(canUseSales ? [{ label: "Customers", to: "/customers", icon: <GroupsRoundedIcon /> }] : []),
 		...(canUseSales ? [{ label: "Inventory", to: "/inventory", icon: <Inventory2RoundedIcon /> }] : []),

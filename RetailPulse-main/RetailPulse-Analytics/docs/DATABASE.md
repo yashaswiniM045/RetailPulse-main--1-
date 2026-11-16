@@ -118,9 +118,33 @@ History retains execution metadata and applied filters only. Table rows are rege
 - `id`, `import_id` foreign key to `import_history.id`
 - `row_number`, `error_type`, `message`, `row_data`
 
+### workflow_configurations
+
+- `id`, `company_id` foreign key to `companies.id`, `request_type`
+- `approver_role`, `approval_required`, `allow_self_approval`, `is_active`
+- `updated_by_id` foreign key to `users.id`, `created_at`, `updated_at`
+- Unique per company and request type. The initial workflow types are stock adjustment, product deactivation, product price change, customer information change, and inventory import approval.
+
+### approval_requests
+
+- `id`, `company_id` foreign key to `companies.id`, `request_type`
+- `requested_by_id` foreign key to `users.id`, `approver_role`
+- `related_record_type`, `related_record_id`, `current_values` JSON, `requested_changes` JSON
+- `reason`, `priority`, `status`, `created_at`, `updated_at`
+- Indexed by company/status, company/type, and company/creation time. Company-scoped queries are required for every access.
+
+### approval_history
+
+- `id`, `request_id` foreign key to `approval_requests.id`, `company_id`
+- `actor_id` foreign key to `users.id` (nullable for system actions)
+- `action`, `comment`, `details` JSON, `created_at`
+- Append-only from the workflow API; normal users cannot edit or delete timeline entries.
+
 Import history and error rows are scoped through the owning company's import record. The persisted job payload enables the single in-process background worker to resume after an application restart; completed job payloads are cleared while row-level error data remains available for review and error-report downloads.
 
 The issue tables contain reconciliation metadata and issue context only; they do not copy source business rows. The application initializes schema with SQLAlchemy `create_all`, consistent with the existing repository. Every issue and event is company-scoped and filtered by the authenticated user's company.
+
+The workflow tables are also initialized through SQLAlchemy `create_all`; no separate migration runner is currently used in this application.
 
 ## Isolation
 

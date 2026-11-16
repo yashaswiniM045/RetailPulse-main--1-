@@ -13,8 +13,10 @@ from src.dependencies.auth import require_roles
 from src.dependencies.database import get_db
 from src.models.category import Category
 from src.models.import_history import ImportErrorRecord, ImportHistory, ImportJob, ImportStatus
+from src.models.workflow import ApprovalRequest
 from src.models.user import User, UserRole
 from src.schemas.import_schema import ImportDetailResponse, ImportHistoryRecord, ImportValidationSummary
+from src.schemas.workflow import ApprovalRequestCreate
 from src.services.audit_service import AuditAction, create_audit_log
 from src.services.import_service import (
     REQUIRED_COLUMNS,
@@ -22,9 +24,9 @@ from src.services.import_service import (
     get_import_errors,
     get_import_history_record,
     parse_csv_upload,
-    start_staged_import,
     validate_csv_rows,
 )
+from src.services.workflow_service import create_workflow_request
 
 router = APIRouter(prefix="/imports", tags=["imports"])
 authorized_importer = require_roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN)
@@ -157,8 +159,22 @@ def start_import_route(
     current_user: User = Depends(authorized_importer),
     db: Session = Depends(get_db),
 ):
-    record = start_staged_import(db, current_user, import_id, request)
-    return _summary(record, db.get(ImportJob, record.id))
+    record = get_import_history_record(db, current_user.company_id, import_id)
+    if record.status != ImportStatus.UPLOADED.value:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This import has already been started or cancelled")
+    approval = create_workflow_request(
+        db,
+        current_user,
+        ApprovalRequestCreate(
+            requestType="inventory-import-approval",
+            relatedRecordId=record.id,
+            requestedChanges={"action": "start-import"},
+            reason=f"Approve {record.import_type} import: {record.filename}",
+            priority="medium",
+        ),
+        request,
+    )
+    return {**_summary(record, db.get(ImportJob, record.id)), "approvalRequestId": approval["id"], "approvalStatus": approval["status"]}
 
 
 @router.get("/history", response_model=list[ImportHistoryRecord])
@@ -219,6 +235,19 @@ def cancel_import_route(
     }:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This import cannot be cancelled")
     job = db.get(ImportJob, import_id)
+    pending_workflow = db.scalar(
+        select(ApprovalRequest.id).where(
+            ApprovalRequest.company_id == current_user.company_id,
+            ApprovalRequest.request_type == "inventory-import-approval",
+            ApprovalRequest.related_record_id == import_id,
+            ApprovalRequest.status.in_(("draft", "pending-approval")),
+        )
+    )
+    if pending_workflow is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cancel the related approval request before discarding this import.",
+        )
     record.status = ImportStatus.CANCELLED.value
     record.completed_at = datetime.now(timezone.utc)
     if job:

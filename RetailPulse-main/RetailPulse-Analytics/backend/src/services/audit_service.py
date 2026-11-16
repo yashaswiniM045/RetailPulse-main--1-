@@ -51,6 +51,12 @@ class AuditAction:
     IMPORT_STARTED = "Import Started"
     IMPORT_FAILED = "Import Failed"
     IMPORT_CANCELLED = "Import Cancelled"
+    WORKFLOW_REQUEST_CREATED = "Workflow Request Created"
+    WORKFLOW_REQUEST_SUBMITTED = "Workflow Request Submitted"
+    WORKFLOW_REQUEST_APPROVED = "Workflow Request Approved"
+    WORKFLOW_REQUEST_REJECTED = "Workflow Request Rejected"
+    WORKFLOW_REQUEST_CANCELLED = "Workflow Request Cancelled"
+    WORKFLOW_CONFIGURATION_CHANGED = "Workflow Configuration Changed"
 
 
 def create_audit_log(

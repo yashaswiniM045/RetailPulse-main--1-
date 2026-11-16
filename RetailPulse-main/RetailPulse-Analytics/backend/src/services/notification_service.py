@@ -22,6 +22,7 @@ ROLE_MATRIX = {
     "import-started": {UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN},
     "sales-alert": {UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN, UserRole.ANALYST},
     "system-alert": {UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN},
+    "workflow-request": {UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN, UserRole.ANALYST, UserRole.VIEWER},
 }
 
 

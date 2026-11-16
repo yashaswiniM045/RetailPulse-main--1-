@@ -732,7 +732,14 @@ def create_staged_import(
     return record, summary
 
 
-def start_staged_import(db: Session, current_user: User, import_id: int, request: Request | None = None) -> ImportHistory:
+def start_staged_import(
+    db: Session,
+    current_user: User,
+    import_id: int,
+    request: Request | None = None,
+    *,
+    commit: bool = True,
+) -> ImportHistory:
     record = get_import_history_record(db, current_user.company_id, import_id)
     if record.status != ImportStatus.UPLOADED.value:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This import has already been started or cancelled")
@@ -765,7 +772,8 @@ def start_staged_import(db: Session, current_user: User, import_id: int, request
         resource_id=record.id,
         details={"importType": record.import_type, "filename": record.filename},
     )
-    db.commit()
+    if commit:
+        db.commit()
     return record
 
 

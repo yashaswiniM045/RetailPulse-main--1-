@@ -53,6 +53,8 @@ export interface ImportProcessResult {
 	startedAt: string | null;
 	completedAt: string | null;
 	durationSeconds: number | null;
+	approvalRequestId?: number;
+	approvalStatus?: string;
 }
 
 export interface ImportUploadResult {

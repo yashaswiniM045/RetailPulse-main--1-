@@ -18,6 +18,7 @@ import DataImportPage from "../pages/data-import/DataImportPage";
 import AuditLogsPage from "../pages/audit-logs/AuditLogsPage";
 import ReportsPage from "../pages/reports/ReportsPage";
 import DataQualityPage from "../pages/data-quality/DataQualityPage";
+import WorkflowsPage from "../pages/workflows/WorkflowsPage";
 import ProtectedRoute from "./ProtectedRoute";
 import RoleRoute from "./RoleRoute";
 
@@ -34,6 +35,7 @@ export default function AppRoutes() {
 			<Route element={<ProtectedRoute />}>
 				<Route element={<DashboardLayout />}>
 					<Route path="/profile" element={<ProfilePage />} />
+					<Route path="/workflows" element={<WorkflowsPage />} />
 					<Route element={<RoleRoute allowedRoles={["Company Admin", "Super Admin", "Analyst"]} />}>
 						<Route path="/dashboard" element={<DashboardHome />} />
 						<Route path="/analytics/sales" element={<SalesAnalyticsPage />} />

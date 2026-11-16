@@ -64,14 +64,49 @@ Import endpoints require an authenticated Company Admin or Super Admin. Every im
 - `GET /api/imports/templates/{type}` downloads the CSV template for `products`, `inventory`, `customers`, or `sales`.
 - `POST /api/imports/upload` accepts multipart fields `import_type` and `file`. It parses and validates the CSV, creates an `Uploaded` import-history record, and returns the preview, row counts, missing columns, and validation issues. Product SKUs, customer email/phone, and sale invoice references that already exist are rejected. Inventory rows are keyed by SKU and update the matching product's stock.
 - `POST /api/imports/validate` accepts `{ "importType": "products", "rows": [...] }` for validating up to 10,000 rows without creating an import.
-- `POST /api/imports/{id}/start` starts an uploaded job and returns its current summary. A background worker validates and processes records in batches; poll the status endpoint rather than waiting for the full import.
+- `POST /api/imports/{id}/start` creates a pending inventory-import-approval request. The staged rows remain unchanged until approval; after approval a background worker validates and processes records in batches. The response includes `approvalRequestId` and `approvalStatus`.
 - `GET /api/imports/{id}/status` returns status, processed/total counts, percent complete, successes, failures, duplicates, skipped rows, and duration.
 - `GET /api/imports/{id}` returns the same summary and row-level errors, including original row values.
 - `GET /api/imports/{id}/errors` returns failed row details as JSON.
 - `GET /api/imports/{id}/errors.csv` downloads the failed rows and validation/processing reasons.
 - `GET /api/imports/history` lists imports for the current company.
-- `POST /api/imports/{id}/cancel` cancels an uploaded or active import. Already committed rows remain recorded as successful; unprocessed rows are not processed.
+- `POST /api/imports/{id}/cancel` cancels an uploaded or active import. Cancel any associated pending workflow request first. Already committed rows remain recorded as successful; unprocessed rows are not processed.
 
 Statuses are `Uploaded`, `Validating`, `Processing`, `Completed`, `Completed with Errors`, `Failed`, and `Cancelled`. Import start/completion/failure notifications use import-specific event keys to avoid duplicate event notifications. Upload, start, completion, failure, and cancellation are written to Audit Logs. Successful product, inventory, customer, and sales changes trigger targeted Data Quality checks.
 
 The API process runs one import worker that resumes persisted `Validating`/`Processing` jobs after restart. Deploy one worker-enabled API process per database unless a distributed job-claim mechanism is configured; multiple independent worker processes are not currently supported.
+# Workflow & Approval Management
+
+All workflow APIs are under `/api/workflows` and require a bearer access token. Request listing and details are restricted to the authenticated company. Requesters can access their own requests; company admins can access all requests in their company; approvers can access requests assigned to their configured role. The backend checks the same permissions again for every approval action.
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `POST` | `/api/workflows` | Create a request (submitted for approval by default). |
+| `POST` | `/api/workflows/{id}/submit` | Submit a draft request. |
+| `GET` | `/api/workflows` | Filter and paginate requests with `scope=all\|mine\|queue`, `requestType`, `status`, `search`, `sortDirection`, `page`, and `pageSize`. |
+| `GET` | `/api/workflows/{id}` | View request details and timeline. |
+| `GET` | `/api/workflows/{id}/history` | Retrieve the append-only approval timeline. |
+| `POST` | `/api/workflows/{id}/approve` | Approve and apply a pending change; optional JSON `comment`. |
+| `POST` | `/api/workflows/{id}/reject` | Reject a pending change; JSON `comment` is mandatory. |
+| `POST` | `/api/workflows/{id}/cancel` | Cancel a draft or pending request (requester or company admin). |
+| `GET` | `/api/workflows/pending-count` | Return pending approver and own open-request counts. |
+| `GET` | `/api/workflows/config` | List company workflow configuration (company admin only). |
+| `PUT` | `/api/workflows/config/{requestType}` | Update an approval role/policy (company admin only). |
+
+Supported `requestType` values are `stock-adjustment`, `product-deactivation`, `product-price-change`, `customer-information-change`, and `inventory-import-approval`. The request body uses `relatedRecordId`, `requestedChanges`, and a required `reason`. Allowed changes are type-specific: `targetQuantity`; `status: "inactive"`; `unitPrice` and/or `costPrice`; customer contact/address fields; or `action: "start-import"`.
+
+The request lifecycle is `draft` → `submitted` → `pending-approval` → `approved`, `rejected`, or `cancelled`; `submitted` is recorded as a timeline event before the persisted status becomes `pending-approval`. Configurations can disable approval, in which case submitted requests are applied and marked approved in one transaction. Approval updates the business record, request state, audit entry, history, and notifications transactionally. Import requests leave staged source data untouched until an approver authorizes the existing import worker. Product price/stock/deactivation updates and customer information updates through their existing APIs are rejected when the corresponding workflow requires approval.
+
+Example:
+
+```json
+{
+  "requestType": "stock-adjustment",
+  "relatedRecordId": 42,
+  "requestedChanges": { "targetQuantity": 150 },
+  "reason": "Reconciled the physical stock count",
+  "priority": "high"
+}
+```
+
+The import start endpoint `POST /api/imports/{id}/start` now creates an inventory-import-approval request; it does not process any import rows before approval.

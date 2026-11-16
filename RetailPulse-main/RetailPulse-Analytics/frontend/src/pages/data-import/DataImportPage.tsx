@@ -23,6 +23,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
 import { ChangeEvent, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
 	cancelImport,
 	downloadImportErrorReport,
@@ -73,6 +74,7 @@ function statusColor(status: string): "default" | "success" | "warning" | "error
 
 export default function DataImportPage() {
 	const { notify } = useNotification();
+	const navigate = useNavigate();
 	const [importType, setImportType] = useState<ImportType>("products");
 	const [validation, setValidation] = useState<ImportValidationSummary | null>(null);
 	const [selectedImportId, setSelectedImportId] = useState<number | null>(null);
@@ -162,10 +164,15 @@ export default function DataImportPage() {
 		setBusyAction("start");
 		setErrorMessage(null);
 		try {
-			await startImport(selectedImportId);
-			await statusQuery.refetch();
+			const approval = await startImport(selectedImportId);
 			await historyQuery.refetch();
-			notify("Import processing has started.", "success");
+			notify(
+				approval.approvalStatus === "approved"
+					? "Import was automatically approved and processing has started."
+					: "Import submitted for approval. No business records have been changed.",
+				"success",
+			);
+			navigate(`/workflows?scope=mine&requestId=${approval.approvalRequestId}`);
 		} catch (error) {
 			setErrorMessage(messageFromError(error, "Unable to start this import."));
 		} finally {

@@ -673,8 +673,8 @@ export async function listInventoryMovements(params: {
 }
 
 export async function adjustInventoryStock(payload: InventoryAdjustmentPayload) {
-	const response = await apiClient.post<Record<string, unknown>>("/inventory/adjustments", payload);
-	return normalizeInventoryItem(response.data);
+	const response = await apiClient.post<{ id: number; requestId: string; status: string }>("/inventory/adjustments", payload);
+	return response.data;
 }
 
 export async function updateInventoryReorderLevel(productId: number, payload: InventoryReorderLevelPayload) {

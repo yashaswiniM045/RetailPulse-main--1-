@@ -22,6 +22,7 @@ function relativeTime(date: string) {
 
 function destination(item: NotificationItem) {
 	if (item.resourceType === "Import") return "/data-import";
+	if (item.resourceType === "WorkflowRequest") return `/workflows?requestId=${encodeURIComponent(item.resourceId ?? "")}`;
 	if (item.resourceType === "Product") return "/inventory";
 	if (item.resourceType === "Sale") return "/sales";
 	return null;

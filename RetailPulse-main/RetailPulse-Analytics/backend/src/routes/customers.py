@@ -1,6 +1,6 @@
 from datetime import date
 
-from fastapi import APIRouter, Depends, Query, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from sqlalchemy.orm import Session
 
 from src.dependencies.auth import require_roles
@@ -40,6 +40,7 @@ from src.services.customer_service import (
     update_customer,
     update_customer_status,
 )
+from src.services.workflow_service import workflow_requires_approval
 
 router = APIRouter(prefix="/customers", tags=["customers"])
 
@@ -139,6 +140,26 @@ def update_customer_route(
     current_user: User = Depends(require_roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN, UserRole.ANALYST)),
     db: Session = Depends(get_db),
 ):
+    current = get_customer(db, current_user.company_id, customer_id)
+    requested_fields = {
+        "fullName": payload.full_name,
+        "email": str(payload.email),
+        "phoneNumber": payload.phone_number,
+        "addressLine1": payload.address_line1,
+        "addressLine2": payload.address_line2,
+        "city": payload.city,
+        "state": payload.state,
+        "country": payload.country,
+        "postalCode": payload.postal_code,
+    }
+    if (
+        any(requested_fields[key] != current.get(key) for key in requested_fields)
+        and workflow_requires_approval(db, current_user.company_id, "customer-information-change")
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="Customer information changes require an approval request. Submit them from Workflows & Approvals.",
+        )
     return update_customer(db, current_user, customer_id, payload, request)
 
 

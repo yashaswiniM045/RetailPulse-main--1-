@@ -29,6 +29,7 @@ from .reporting import ReportHistory, ScheduledReport
 from .product import Product, ProductStatus
 from .sale import PaymentMethod, PaymentStatus, Sale, SaleItem, SalesChannel
 from .user import User
+from .workflow import ApprovalHistory, ApprovalRequest, WorkflowConfiguration
 
 __all__ = [
 	"AuditLog",
@@ -69,4 +70,7 @@ __all__ = [
 	"SaleItem",
 	"SalesChannel",
 	"User",
+	"ApprovalHistory",
+	"ApprovalRequest",
+	"WorkflowConfiguration",
 ]
